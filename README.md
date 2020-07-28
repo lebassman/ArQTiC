@@ -1,2 +1,2 @@
 # ArQTiC
-ARchitecture for Quantum Time-dependent Circuits
+Architecture for Quantum Time-dependent Circuits
