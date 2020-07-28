@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import hamiltonians
 
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])
@@ -10,7 +11,16 @@ H = np.array([[1.0,1.0],[1.0,-1.0]])*(1/np.sqrt(2.0))
 CNOT = np.array([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,0.0,1.0],[0.0,0.0,1.0,0.0]])
 CZ = np.array([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,-1.0]])
 
-gate_dict = {
+def RX(theta):
+    return np.array([[np.cos(theta/2.0) , -1.0j*np.sin(theta/2.0)], [-1.0j*np.sin(theta/2.0), np.cos(theta/2.0)]])
+
+def RY(theta):
+    return np.array([[np.cos(theta/2.0) , -np.sin(theta/2.0)], [np.sin(theta/2.0), np.cos(theta/2.0)]])
+
+def RZ(theta):
+    return np.array([[np.exp(-1.0j*theta/2.0), 0], [0, np.exp(1.0j*theta/2.0)]])
+
+gate_matrix_dict = {
     "X": X, 
     "Y": Y,
     "Z": Z, 
@@ -27,14 +37,14 @@ class Gate:
         self.qubits = qubits
 
     def matrix(self):
-        if self.name in gate_dict:
-            return gate_dict[self.name]
-        elif (self.name == 'RZ'):
-            return np.array([[np.cos(self.angles[0]/2)-1.0j*np.sin(self.angles[0]/2), 0],[0, np.cos(self.angles[0]/2)+1.0j*np.sin(self.angles[0]/2)]])
+        if self.name in gate_matrix_dict:
+            return gate_matrix_dict[self.name]
         elif (self.name == 'RX'):
-            return np.array([[np.cos(self.angles[0]/2), -1.0j*np.sin(self.angles[0]/2)],[-1.0j*np.sin(self.angles[0]/2), np.cos(self.angles[0]/2)]])
+            return RX(self.angles[0])
         elif (self.name == 'RY'):
-            return np.array([[np.cos(self.angles[0]/2), -np.sin(self.angles[0]/2)],[np.sin(self.angles[0]/2), np.cos(self.angles[0]/2)]])
+            return RY(self.angles[0])
+        elif (self.name == 'RZ'):
+            return RZ(self.angles[0])
         else:
             print("Error: ", self.name, " is not a known gate name!")
             exit()
@@ -59,113 +69,6 @@ class Term:
     def __init__(self, paulis, coeff):
         self.paulis = paulis
         self.coeff = coeff
-
-class Hamiltonian:
-    def __init__(self, nqubits, terms):
-        self.nqubits = nqubits
-        self.terms = terms
-
-    def add_term(self, term):
-        self.term.append(term)
-
-    def matrix(self):
-        dim = 2**self.nqubits
-        ham_mat = np.zeros((dim,dim))
-        for term in self.terms:
-            kron_list = ['I'] * self.nqubits
-            for pauli in term.paulis:
-               kron_list[pauli.qubit] = pauli.name
-            for q in range(self.nqubits-1):
-                if (q==0):
-                    mat = np.kron(gate_dict[kron_list[0]], gate_dict[kron_list[1]])
-                else:          
-                    mat = np.kron(mat, gate_dict[kron_list[q+1]])
-            mat = term.coeff * mat 
-            ham_mat = ham_mat + mat
-        return ham_mat
-    
-    def show(self):
-        dim = 2**self.nqubits
-        ham_mat = self.matrix()
-        for i in range(dim):
-            for j in range(dim):
-                print(ham_mat[i][j])
-
-class Ising_Hamiltonian:
-    def __init__(self, nqubits, exchange_coeff, ext_mag_vec, pbc=False):
-        self.nqubits = nqubits
-        self.exchange_coeff = exchange_coeff
-        self.ext_mag_vec = ext_mag_vec
-        self.pbc = pbc
-
-    def matrix(self):
-        ham_terms = []
-        x_field = self.ext_mag_vec[0]
-        y_field = self.ext_mag_vec[1]
-        z_field = self.ext_mag_vec[2]
-        #add Ising exchange interaction terms to Hamiltonian
-        for q in range(self.nqubits-1):
-            pauli1 = Pauli('Z',q)
-            pauli2 = Pauli('Z',q+1)
-            paulis = [pauli1, pauli2]
-            exch_term = Term(paulis, -1.0*self.exchange_coeff)
-            ham_terms.append(exch_term)
-        #in case of pbc=true add term n->0
-        if(self.pbc): 
-            pauli1 = Pauli('Z',self.nqubits-1)
-            pauli2 = Pauli('Z',0)
-            paulis = [pauli1, pauli2]
-            exch_term = Term(paulis, -1.0*self.exchange_coeff)
-            ham_terms.append(exch_term)
-        #add external magnetic field terms to Hamiltonian
-        for q in range(self.nqubits):
-            if (x_field != 0.0):
-                pauli = Pauli('X', q)
-                term = Term([pauli], -1.0*x_field)
-                ham_terms.append(term)
-            if (y_field != 0.0):
-                pauli = Pauli('Y', q)
-                term = Term([pauli], -1.0*y_field)
-                ham_terms.append(term)
-            if (z_field != 0.0):
-                pauli = Pauli('Z', q)
-                term = Term([pauli], -1.0*z_field)
-                ham_terms.append(term)
-        ham_mat = Hamiltonian(self.nqubits, ham_terms)
-        return ham_mat.matrix()
-
-    def show(self):
-        dim = 2**self.nqubits
-        ham_mat = self.matrix()
-        for i in range(dim):
-            for j in range(dim):
-                print(ham_mat[i][j])
-
-    def print_pretty(self):
-        dim = 2**self.nqubits
-        ham_mat = self.matrix()
-        for i in range(dim):
-            print(list(ham_mat[i]), ",")
-
-    def get_Trotter_program(self, delta_t, total_time): #right now only works for x-dir external magnetic field and pbc=False
-        H_BAR = 0.658212 #eV*fs 
-        p = Program(self.nqubits)
-        timesteps = int(total_time/delta_t)
-        for t in range(0,timesteps):
-            instr_set1 = []
-            instr_set2 = []
-            for q in range(0, self.nqubits):
-                instr_set1.append(Gate('H', [q]))
-                instr_set1.append(Gate('RZ', [q], angles=[(-2.0*self.ext_mag_vec[0]*delta_t/H_BAR)]))
-                instr_set1.append(Gate('H',[q]))
-            for q in range(0, self.nqubits-1):
-                instr_set2.append(Gate('CNOT',[q, q+1]))
-                instr_set2.append(Gate('RZ', [q+1], angles=[-2.0*self.exchange_coeff*delta_t/H_BAR]))
-                instr_set2.append(Gate('CNOT', [q, q+1]))
-            p.add_instr(instr_set1)
-            p.add_instr(instr_set2)
-        return p
-
 
 class Program:
     def __init__(self, nqubits):
