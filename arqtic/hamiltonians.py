@@ -1,4 +1,4 @@
-from .program import Program, Pauli, Term, Gate
+import arqtic.program
 
 class Hamiltonian:
     def __init__(self, nqubits, terms):

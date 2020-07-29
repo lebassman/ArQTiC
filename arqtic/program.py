@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from .hamiltonians import Ising_Hamiltonian	
+from arqtic.hamiltonians import Ising_Hamiltonian
 
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])

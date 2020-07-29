@@ -1,9 +1,8 @@
-from .program import Program
+from arqtic.program import Program
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 
 def run_ibm(backend, prog):
-    import qiskit as qk
     nqubits = prog.nqubits
     #declare registers
     q_regs = qk.QuantumRegister(nqubits, 'q')
