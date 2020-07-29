@@ -25,6 +25,9 @@ import os
 from qiskit.circuit import quantumcircuit
 from qiskit.circuit import Instruction
 
+from pyquil.quil import Program
+from pyquil.gates import RX, RZ, CZ, RESET, MEASURE
+
 current=os.getcwd()
 newdir="Data"
 path = os.path.join(current, newdir) 
@@ -129,69 +132,6 @@ class Hamiltonian:
             for j in range(dim):
                 print(ham_mat[i][j])
 
-class Ising_Hamiltonian:
-    def __init__(self, nqubits, exchange_coeff, ext_mag_vec, pbc=False):
-        self.nqubits = nqubits
-        self.exchange_coeff = exchange_coeff
-        self.ext_mag_vec = ext_mag_vec
-        self.pbc = pbc
-
-    def matrix(self):
-        ham_terms = []
-        x_field = self.ext_mag_vec[0]
-        y_field = self.ext_mag_vec[1]
-        z_field = self.ext_mag_vec[2]
-        #add Ising exchange interaction terms to Hamiltonian
-        for q in range(self.nqubits-1):
-            pauli1 = Pauli('Z',q)
-            pauli2 = Pauli('Z',q+1)
-            paulis = [pauli1, pauli2]
-            exch_term = Term(paulis, -1.0*self.exchange_coeff)
-            ham_terms.append(exch_term)
-        #in case of pbc=true add term n->0
-        if(self.pbc): 
-            pauli1 = Pauli('Z',self.nqubits-1)
-            pauli2 = Pauli('Z',0)
-            paulis = [pauli1, pauli2]
-            exch_term = Term(paulis, -1.0*self.exchange_coeff)
-            ham_terms.append(exch_term)
-        #add external magnetic field terms to Hamiltonian
-        for q in range(self.nqubits):
-            if (x_field != 0.0):
-                pauli = Pauli('X', q)
-                term = Term([pauli], -1.0*x_field)
-                ham_terms.append(term)
-            if (y_field != 0.0):
-                pauli = Pauli('Y', q)
-                term = Term([pauli], -1.0*y_field)
-                ham_terms.append(term)
-            if (z_field != 0.0):
-                pauli = Pauli('Z', q)
-                term = Term([pauli], -1.0*z_field)
-                ham_terms.append(term)
-        ham_mat = Hamiltonian(self.nqubits, ham_terms)
-        return ham_mat.matrix()
-
-
-
-    def get_Trotter_program(self, delta_t, total_time): #right now only works for x-dir external magnetic field and pbc=False
-        H_BAR = 0.658212 #eV*fs 
-        p = Program(self.nqubits)
-        timesteps = int(total_time/delta_t)
-        for t in range(0,timesteps):
-            instr_set1 = []
-            instr_set2 = []
-            for q in range(0, self.nqubits):
-                instr_set1.append(Gate('H', [q]))
-                instr_set1.append(Gate('RZ', [q], angles=[(-2.0*self.ext_mag_vec[0]*delta_t/H_BAR)]))
-                instr_set1.append(Gate('H',[q]))
-            for q in range(0, self.nqubits-1):
-                instr_set2.append(Gate('CNOT',[q, q+1]))
-                instr_set2.append(Gate('RZ', [q+1], angles=[-2.0*self.exchange_coeff*delta_t/H_BAR]))
-                instr_set2.append(Gate('CNOT', [q, q+1]))
-            p.add_instr(instr_set1)
-            p.add_instr(instr_set2)
-        return p
 
 
 class Program:
@@ -492,22 +432,47 @@ class Heisenberg:
             self.logfile.write("TFIM detected, enabling smart compiler")
             temp=[]
             for circuit in self.ibm_circuits_list:
-                temp.append(smart_compile(circuit))
+                temp.append(smart_compile(circuit,self.backend))
             self.ibm_circuits_list=temp
 
         elif self.default_compiler in "smart":
             temp=[]
+            print("Compiling circuits...")
+            self.logfile.write("Compiling circuits...")
             for circuit in self.ibm_circuits_list:
-                temp.append(smart_compile(circuit))
+                temp.append(smart_compile(circuit,self.backend))
             self.ibm_circuits_list=temp
+            print("Circuits compiled successfully")
+            self.logfile.write("Circuits compiled successfully")
         elif self.default_compiler in "native":
             temp=[]
+            print("Transpiling circuits...")
+            self.logfile.write("Transpiling circuits...")
             for circuit in self.ibm_circuits_list:
                 circ = qk.transpile(circuits, backend=backend, optimization_level=3)
                 temp.append(circ)
             self.ibm_circuits_list=temp
+            print("Circuits transpiled successfully")
+            self.logfile.write("Circuits transpiled successfully")
 
-        return ibm_circuits_list
+
+    def generate_rigetti(self):
+        print("Creating Pyquil program...")
+        self.logfile.write("Creating Pyquil program...")
+        #Not finished yet
+
+    def generate_cirq(self):
+        #placeholder
+
+    def generate_circuits(self):
+        self.generate_local_circuits()
+        if self.backend in "ibm":
+            self.generate_ibm()
+        if self.backend in "rigetti":
+            self.generate_rigetti()
+        if self.backend in "cirq":
+            self.generate_cirq()
+
     def connect_account(self,api_key=None, overwrite=False):
         if api_key != None:
             if overwrite==False:
@@ -522,12 +487,18 @@ class Heisenberg:
         print("Current model parameters:\n\nH_BAR = {}\nJX = {}\nJY = {}\nJZ = {}\nh_ext = {}\next_dir = {}".format(self.H_BAR,self.JX,self.JY,self.JZ,self.h_ext,self.ext_dir))
         print("num_qubits = {}\ninitial_spins = {}\ndelta_t = {}\nsteps = {}\nQCQS = {}\nshots = {}\nnoise_choice = {}".format(self.num_qubits,self.initial_spins,self.delta_t,self.steps,self.QCQS,self.shots,self.noise_choice))
         print("device choice = {}\nplot_flag = {}\nfreq = {}\ntime_dep_flag = {}\ncustom_time_dep = {}\n".format(self.device_choice,self.plot_flag,self.freq,self.time_dep_flag,self.custom_time_dep)) 
+        #this is missing some of the latest parameter additions
 
     def results(self):
         return self.result_matrix
 
     def return_circuits(self):
-        return self.circuits_list
+        if self.backend in "ibm":
+            return self.ibm_circuits_list
+        elif self.backend in "rigetti":
+            return self.rigetti_circuits_list
+        elif self.backend in "cirq":
+            return self.cirq_circuits_list
 
     def average_magnetization(self,result: dict, shots: int, qub: int):
       """Compute average magnetization from results of qk.execution.
@@ -559,144 +530,132 @@ class Heisenberg:
 
 
     def run_circuits(self):
-        ## Show available backends
-        provider = qk.IBMQ.get_provider(group='open')
-        provider.backends()
+        if self.backend in "ibm":
+            ## Show available backends
+            provider = qk.IBMQ.get_provider(group='open')
+            provider.backends()
 
-        #choose the device you would like to run on
-        device = provider.get_backend(self.device_choice)
+            #choose the device you would like to run on
+            device = provider.get_backend(self.device_choice)
 
-        #gather fidelity statistics on this device if you want to create a noise model for the simulator
-        properties = device.properties()
-        coupling_map = device.configuration().coupling_map
+            #gather fidelity statistics on this device if you want to create a noise model for the simulator
+            properties = device.properties()
+            coupling_map = device.configuration().coupling_map
 
-        #TO RUN ON THE SIMULATOR 
-        #create a noise model to use for the qubits of the simulator
-        noise_model = NoiseModel.from_backend(device)
-        # Get the basis gates for the noise model
-        basis_gates = noise_model.basis_gates
+            #TO RUN ON THE SIMULATOR 
+            #create a noise model to use for the qubits of the simulator
+            noise_model = NoiseModel.from_backend(device)
+            # Get the basis gates for the noise model
+            basis_gates = noise_model.basis_gates
 
-        # Select the QasmSimulator from the Aer provider
-        simulator = Aer.get_backend('qasm_simulator')
-
-
-        #To run on the quantum computer, assign a quantum computer of your choice as the backend 
-        backend = provider.get_backend(self.device_choice)
-
-        #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
-        if self.QCQS in ["QC"]:
-            #quantum computer execution
-            job = qk.execute(self.circuits_list, backend=backend, shots=self.shots)
-            job_monitor(job)
-
-        elif self.QCQS in ["QS"]:
-            #simulator execution
-            if self.noise_choice in ["y"]:
-                print("Running noisy simulator job...")
-                self.logfile.write("Running noisy simulator job...\n")
-                result_noise = execute(self.circuits_list, simulator, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
-                print("Noisy simulator job successful")
-            elif self.noise_choice in ["n"]:
-                print("Running noiseless simulator job...")
-                self.logfile.write("Running noiseless simulator job...\n")
-                result_noise=execute(self.circuits_list,simulator,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
-                print("Noiseless simulator job successful")
-                self.logfile.write("Noiseless simulator job successful")
-            else: 
-                print("Please enter either y or n for the simulator noise query")
-                self.logfile.write("Please enter either y or n for the simulator noise query\n")
-        else:
-            print("Please enter either QC or QS")
-            self.logfile.write("Please enter either QC or QS\n")
+            # Select the QasmSimulator from the Aer provider
+            simulator = Aer.get_backend('qasm_simulator')
 
 
-        
+            #To run on the quantum computer, assign a quantum computer of your choice as the backend 
+            backend = provider.get_backend(self.device_choice)
+
+            #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
+            if self.QCQS in ["QC"]:
+                #quantum computer execution
+                job = qk.execute(self.circuits_list, backend=backend, shots=self.shots)
+                job_monitor(job)
+
+            elif self.QCQS in ["QS"]:
+                #simulator execution
+                if self.noise_choice in ["y"]:
+                    print("Running noisy simulator job...")
+                    self.logfile.write("Running noisy simulator job...\n")
+                    result_noise = execute(self.circuits_list, simulator, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                    print("Noisy simulator job successful")
+                elif self.noise_choice in ["n"]:
+                    print("Running noiseless simulator job...")
+                    self.logfile.write("Running noiseless simulator job...\n")
+                    result_noise=execute(self.circuits_list,simulator,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                    print("Noiseless simulator job successful")
+                    self.logfile.write("Noiseless simulator job successful")
+                else: 
+                    print("Please enter either y or n for the simulator noise query")
+                    self.logfile.write("Please enter either y or n for the simulator noise query\n")
+            else:
+                print("Please enter either QC or QS")
+                self.logfile.write("Please enter either QC or QS\n")
+
+
             
+                
 
 
-        #Post Processing Depending on Choice
-        self.result_out_list=[]
-        if self.QCQS in ["QS"]:
-            #SIMULATOR POST PROCESSING
-            for j in range(self.num_qubits):
-                avg_mag_sim = []
-                temp = []
-                i = 1
-                print("Post-processing qubit {} data".format(j+1))
-                self.logfile.write("Post-processing qubit {} data\n".format(j+1))
-                for c in self.circuits_list:
-                    result_dict = result_noise.get_counts(c)
-                    temp.append(self.average_magnetization(result_dict, self.shots,j))
-                    if i % self.steps == 0:
-                        avg_mag_sim.append(temp)
-                        temp = []
-                    i += 1
-                # time_vec=np.linspace(0,total_t,steps)
-                # time_vec=time_vec*JX/H_BAR
-                if "y" in self.plot_flag:
-                    plt.figure()
-                    plt.plot(range(self.steps), avg_mag_sim[0])
-                    plt.xlabel("Simulation Timestep")
-                    plt.ylabel("Average Magnetization")
-                    plt.savefig("Data/Simulator_result_qubit{}.png".format(j+1))
-                    plt.close()
-                self.result_out_list.append(avg_mag_sim[0])
-                np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_sim[0])
-            self.result_matrix=np.stack(self.result_out_list)
-            print("Done")
-            self.logfile.write("Done\n")
-
-        elif self.QCQS in ["QC"]:
-            #QUANTUM COMPUTER POST PROCESSING
-            for j in range(self.num_qubits):
-                results = job.result()        
-                avg_mag_qc = []
-                temp = []
-                i = 1
-                print("Post-processing qubit {} data".format(j+1))
-                self.logfile.write("Post-processing qubit {} data\n".format(j+1))
-                for c in self.circuits_list:
-                        result_dict = results.get_counts(c)
+            #Post Processing Depending on Choice
+            self.result_out_list=[]
+            if self.QCQS in ["QS"]:
+                #SIMULATOR POST PROCESSING
+                for j in range(self.num_qubits):
+                    avg_mag_sim = []
+                    temp = []
+                    i = 1
+                    print("Post-processing qubit {} data".format(j+1))
+                    self.logfile.write("Post-processing qubit {} data\n".format(j+1))
+                    for c in self.circuits_list:
+                        result_dict = result_noise.get_counts(c)
                         temp.append(self.average_magnetization(result_dict, self.shots,j))
                         if i % self.steps == 0:
-                                avg_mag_qc.append(temp)
-                                temp = []
+                            avg_mag_sim.append(temp)
+                            temp = []
                         i += 1
-                
-                # QC
-                if "y" in self.plot_flag:
-                    plt.figure()
-                    plt.plot(range(self.steps), avg_mag_qc[0])
-                    plt.xlabel("Simulation Timestep")
-                    plt.ylabel("Average Magnetization")
-                    plt.savefig("Data/QC_result_qubit{}.png".format(j+1))
-                    plt.close()
-                self.result_out_list.append(avg_mag_qc[0])
-                np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_qc[0])
-            self.result_matrix=np.stack(self.result_out_list)           
-            print("Done")
-            self.logfile.write("Done\n")
+                    # time_vec=np.linspace(0,total_t,steps)
+                    # time_vec=time_vec*JX/H_BAR
+                    if "y" in self.plot_flag:
+                        plt.figure()
+                        plt.plot(range(self.steps), avg_mag_sim[0])
+                        plt.xlabel("Simulation Timestep")
+                        plt.ylabel("Average Magnetization")
+                        plt.savefig("Data/Simulator_result_qubit{}.png".format(j+1))
+                        plt.close()
+                    self.result_out_list.append(avg_mag_sim[0])
+                    np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_sim[0])
+                self.result_matrix=np.stack(self.result_out_list)
+                print("Done")
+                self.logfile.write("Done\n")
 
-
-
-
-
-
-
-
-
-
-
-
-
+            elif self.QCQS in ["QC"]:
+                #QUANTUM COMPUTER POST PROCESSING
+                for j in range(self.num_qubits):
+                    results = job.result()        
+                    avg_mag_qc = []
+                    temp = []
+                    i = 1
+                    print("Post-processing qubit {} data".format(j+1))
+                    self.logfile.write("Post-processing qubit {} data\n".format(j+1))
+                    for c in self.circuits_list:
+                            result_dict = results.get_counts(c)
+                            temp.append(self.average_magnetization(result_dict, self.shots,j))
+                            if i % self.steps == 0:
+                                    avg_mag_qc.append(temp)
+                                    temp = []
+                            i += 1
+                    
+                    # QC
+                    if "y" in self.plot_flag:
+                        plt.figure()
+                        plt.plot(range(self.steps), avg_mag_qc[0])
+                        plt.xlabel("Simulation Timestep")
+                        plt.ylabel("Average Magnetization")
+                        plt.savefig("Data/QC_result_qubit{}.png".format(j+1))
+                        plt.close()
+                    self.result_out_list.append(avg_mag_qc[0])
+                    np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_qc[0])
+                self.result_matrix=np.stack(self.result_out_list)           
+                print("Done")
+                self.logfile.write("Done\n")
 
 
 
 
 ############    Pure Smart Compiler Functionality   #######################################################################################################################################
 #If the user just wants to pass an existing circuit object through the smart compilers
-def smart_compile(circ_obj):
-    if isintance(circ_obj,qiskit.circuit.quantumcircuit.QuantumCircuit): #IBM case
+def smart_compile(circ_obj,circ_type):
+    if circ_type in "qiskit":
         nqubits=circ_obj.num_qubits    
         #Read the gate in right vector form
         # G = Gate type
@@ -1007,127 +966,290 @@ def smart_compile(circ_obj):
         return circuit
 
 
+    elif circ_type in "rigetti":
+        nqubits=len(circ_obj.get_qubits())
+        lineList = [str(instr) for instr in circ_obj]
+        count = len(lineList)
+        
+        #Read the gate in right vector form
+        # G = Gate type
+        # TH = Angle of rotation ! if no angle rotation then TH = 0
+        # AC1 = qubit on which action is happening
+        # AC2 = qubit on which controlled action is happening
+
+        G = ["" for x in range(count)]
+        G = list(G)
+        AC1 = np.zeros(shape=(count),dtype=np.int) 
+        AC2 = np.zeros(shape=(count),dtype=np.int) 
+        TH = np.zeros(shape=(count))
+        for i in range (0,count):
+          G[i] = 0
+          TH[i] = 0
+          AC1[i] = 0
+          AC2[i] = 0
+          if lineList[i][0:1] == "H":
+            G[i]="H"
+            TH[i] = 0
+            AC1[i] = lineList[i][2:3]
+            AC2[i] = 0
+          if lineList[i][0:2] == "RZ":
+            G[i] = "RZ"
+            TH[i] = lineList[i][lineList[i].find("(")+1:lineList[i].find(")")]
+            AC1[i] = lineList[i][-1]
+            AC2[i] = 0
+          if lineList[i][0:4] == "CNOT":
+            G[i] = "CNOT"
+            TH[i] = 0
+            AC1[i] = lineList[i][5:6] 
+            AC2[i] = lineList[i][7:8]
+          if lineList[i][0:7] == "MEASURE":
+            G[i] = "MEASURE"
+            TH[i] = 0
+            AC1[i] = 0
+            AC2[i] =0
+        
+        #qiskit_code(G,TH,AC1,AC2,"qiskit_uncompressed.txt")
+        #rigetti_code(G,TH,AC1,AC2,"rigetti_uncompressed.txt")
+
+     
+        # Use CNOT = H CZ H 
+        i = 0
+        while G[i] != "MEASURE":
+          if G[i] == "CNOT":
+             G[i] = "CZ"
+             G.insert(i+1,"H")
+             TH = np.insert(TH,i+1,0) 
+             AC1 = np.insert(AC1,i+1,AC2[i]) 
+             AC2 = np.insert(AC2,i+1,0)
+             G.insert(i,"H")
+             TH = np.insert(TH,i,0) 
+             AC1 = np.insert(AC1,i,AC2[i]) 
+             AC2 = np.insert(AC2,i,0)
+          i = i+1  
+        
+        # Last and second last CNOT can be ommited  
+        maxq = max(max(AC1),max(AC2))
+        remember = np.zeros(shape=(2,maxq),dtype=np.int)
+        for mm in range (0,maxq+1):
+         i = 0
+         while G[i] != "MEASURE":
+              if G[i] == "CZ" and AC1[i] == mm and AC2[i] == mm+1:
+                    j = i+1
+                    while G[j] != "MEASURE":
+                          if G[j] == "CZ" and AC1[j] == mm and AC2[j] == mm+1:
+                               remember[0][mm] = i; remember[1][mm] = j;
+                          j = j+1
+              i = i+1 
+        
+        for nn in range (maxq-1,-1,-1):
+         for mm in range (1,-1,-1):
+        #   print(mm,nn)
+          del G[remember[mm][nn]];TH = np.delete(TH,remember[mm][nn]);
+          AC1 = np.delete(AC1,remember[mm][nn]); AC2 = np.delete(AC2,remember[mm][nn])
+        
+        
+        # Use H*H = I but make sure it can only happen if no gate is 
+        # present in between 
+        i = 0
+        while G[i] != "MEASURE":
+          if G[i] == "H":
+            flag = 0
+            #print(G[i],TH[i],AC1[i],AC2[i],"before start")
+            j = i+1
+            while G[j] != "MEASURE":
+               if ((G[j] == "CZ" and AC1[j] == AC1[i]) or (G[j] == "CZ" and AC2[j] == AC1[i]) or (G[j] == "RZ" and AC1[j] == AC1[i])) :
+                  break
+               if G[j] == G[i] and AC1[j] == AC1[i] :
+                  #print(G[i],TH[i],AC1[i],AC2[i],"before")
+                  del G[j]
+                  TH = np.delete(TH,j)
+                  AC1 = np.delete(AC1,j)
+                  AC2 = np.delete(AC2,j)
+                  #print(G[i],TH[i],AC1[i],AC2[i],"after")
+                  del G[i]
+                  TH = np.delete(TH,i)
+                  AC1 = np.delete(AC1,i)
+                  AC2 = np.delete(AC2,i)
+                  flag = 2
+               j = j+1
+               if flag ==2:
+                  break 
+          i = i + 1
+        
+        
+        
+        # Use CZ H RZ H CZ = RZ(pi/2) CZ RX(pi/2) RZ RX(-pi2) CZ RZ(-pi/2)
+        i = 0 
+        while G[i] != "MEASURE":
+            if (G[i] == "CZ" and G[i+1] == "H" and AC2[i] == AC1[i+1] and G[i+2] == "RZ" and AC2[i] == AC1[i+2] and G[i+3] == "H" and AC2[i] == AC1[i+3] and G[i+4] == "CZ" and AC2[i] == AC2[i+4]):
+                  G[i+1] = "RX"; TH[i+1] = 1.57079632679; 
+                  G[i+3] = "RX"; TH[i+3] = -1.57079632679;
+                  G.insert(i+5,"RZ"); TH = np.insert(TH,i+5,-1.57079632679); 
+                  AC1 = np.insert(AC1,i+5,AC2[i]); AC2 = np.insert(AC2,i+5,0);
+                  G.insert(i,"RZ"); TH = np.insert(TH,i,1.57079632679); 
+                  AC1 = np.insert(AC1,i,AC2[i]); AC2 = np.insert(AC2,i,0);
+                  print("loop activated")
+            i = i+1
+        
+        
+        # Use H = RZ(pi/2) RX(pi/2) RZ(pi/2)
+        i = 0
+        while G[i] !="MEASURE":
+            if (G[i] == "H"):
+                  flag = AC1[i]
+                  G[i] = "RZ"; TH[i] = 1.57079632679 ;
+                  G.insert(i,"RX");TH = np.insert(TH,i,1.57079632679);
+                  AC1 = np.insert(AC1,i,flag); AC2 = np.insert(AC2,i,0); 
+                  G.insert(i,"RZ");TH = np.insert(TH,i,1.57079632679); 
+                  AC1 = np.insert(AC1,i,flag); AC2 = np.insert(AC2,i,0); 
+            i = i+1 
+        
+        
+        # Compress RZ gates
+        loop_flag = 0
+        for mm in range (0,1000):
+         i = 0 
+         while G[i] !="MEASURE": 
+             if (G[i] == "RZ"):
+                   j = i+1
+                   flag = 0
+                   #print(flag,"flag")
+                   while G[j] !="MEASURE":
+                         if (G[j] == "RX" and AC1[j] == AC1[i]):
+                              flag = 2
+                         if (G[j] == "RZ" and AC1[j] == AC1[i]):
+                              TH[i] = TH[i]+TH[j]; 
+                              del G[j];TH = np.delete(TH,j);
+                              AC1 = np.delete(AC1,j); AC2 = np.delete(AC2,j) 
+                              flag = 2
+                              loop_flag = 3
+                         j = j+1
+                         if(flag == 2):
+                              break
+             if (G[i] == "RZ" and TH[i]== 0.0):
+                   del G[i];TH = np.delete(TH,i);
+                   AC1 = np.delete(AC1,i); AC2 = np.delete(AC2,i)
+             i = i +1
+         if(loop_flag == 0):
+             break  
+         if(mm ==1000 and loop_flag==3):
+             print("more RZ compression are left be carefull!!")
+
+
+        i = 0
+        while G[i] != "MEASURE":
+            if (G[i] == "RX" and TH[i] == 1.57079632679):
+                i1 = i+1
+                while G[i1] != "MEASURE":
+                    if (G[i1] == "RX" and AC1[i1] == AC1[i] or G[i1] == "CZ" and AC1[i1] == AC1[i] or G[i1] == "RZ" and TH[i1] != 3.14159265358 and AC1[i1] == AC1[i] or G[i1] == "CZ" and AC2[i1] == AC1[i]):
+                        break
+                    if (G[i1] == "RZ" and TH[i1] == 3.14159265358 and AC1[i1] == AC1[i]):
+                        i2 = i1+1
+                        while G[i2] != "MEASURE":
+                            if (G[i2] == "RX" and AC1[i2] == AC1[i] or G[i2] == "RZ" and AC1[i2] == AC1[i] ):
+                                break
+                            if (G[i2] == "CZ" and AC1[i2] == AC1[i] and G[i2+4] == "CZ" and AC1[i2+4] == AC1[i]):
+                                i3 = i2 +5
+                                while G[i3] != "MEASURE":
+                                    if(G[i3] == "RZ" and AC1[i3] == AC1[i]+1 or G[i3] == "CZ" and AC1[i3] == AC1[i]+1 or G[i3] == "RX" and TH[i3] != 1.57079632679 and AC1[i3] == AC1[i]+1 ):
+                                        break
+                                    if(G[i3] == "RX" and TH[i3] == 1.57079632679 and AC1[i3] == AC1[i]+1) :
+                                        i4 = i2 + 5
+                                        while G[i4] != "MEASURE":
+                                            if (G[i4] == "RZ" and AC1[i4] == AC1[i] or G[i4] == "CZ" and AC1[i4] == AC1[i] or G[i4] == "RX" and TH[i4] != 1.57079632679 and AC1[i4] == AC1[i] ):
+                                                break
+                                            if(G[i4] == "RX" and TH[i4] == 1.57079632679 and AC1[i4] == AC1[i]) :
+                                                AC1[i2+1] = AC1[i];AC1[i2+2] = AC1[i];AC1[i2+3] = AC1[i]
+                                                G[i4] = "RZ"; TH[i4] = 3.14159265358;
+                                                del G[i3];TH = np.delete(TH,i3)
+                                                AC1 = np.delete(AC1,i3); AC2 = np.delete(AC2,i3)
+                                                G.insert(i2,"RX")
+                                                TH = np.insert(TH,i2,1.57079632679)           
+                                                AC1 = np.insert(AC1,i2,AC2[i2]); AC2 = np.insert(AC2,i2,0)
+                                                del G[i1];TH = np.delete(TH,i1)
+                                                AC1 = np.delete(AC1,i1); AC2 = np.delete(AC2,i1)
+                                                del G[i];TH = np.delete(TH,i)
+                                                AC1 = np.delete(AC1,i); AC2 = np.delete(AC2,i)
+                                                break
+                                            i4 = i4 +1
+                                    i3 = i3 + 1
+                            i2 = i2 + 1
+                    i1 = i1 + 1 
+            i = i+1
+         
+         
+        # Compress RZ gates                                                            
+        loop_flag = 0                                                                  
+        for mm in range (0,1000):                                                      
+            i = 0                                                                         
+            while G[i] !="MEASURE":                                                       
+                if (G[i] == "RZ"):                                                        
+                    j = i+1                                                             
+                    flag = 0                                                            
+                    while G[j] !="MEASURE":                                             
+                        if (G[j] == "RX" and AC1[j] == AC1[i]):                       
+                            flag = 2                                                 
+                        if (G[j] == "RZ" and AC1[j] == AC1[i]):                       
+                            TH[i] = TH[i]+TH[j];                                     
+                            del G[j];TH = np.delete(TH,j);                           
+                            AC1 = np.delete(AC1,j); AC2 = np.delete(AC2,j)           
+                            flag = 2                                                 
+                            loop_flag = 3                                            
+                        j = j+1                                                       
+                        if(flag == 2):                                                
+                            break                                                    
+                if (G[i] == "RZ" and TH[i]== 0.0):                                        
+                    del G[i];TH = np.delete(TH,i);                                      
+                    AC1 = np.delete(AC1,i); AC2 = np.delete(AC2,i)                      
+                i = i +1                                                                  
+            if(loop_flag == 0):                                                           
+                break                                                                     
+            if(mm ==1000 and loop_flag==3):                                               
+                print("more RZ compression are left be carefull!!")
+         
+         
+        # Use RZ(theta) RX RZ(pi) = RZ(theta-pi) RX(-pi2)
+        i = 0
+        while G[i] != "MEASURE":
+            if (G[i] == "RZ"):
+                loop_breaker = 0
+                i1 = i+1
+                while G[i1] != "MEASURE":
+                    if (G[i1] == "RX" and TH[i1] != 1.57079632679 and AC1[i1] == AC1[i]):
+                        break
+                    if (G[i1] == "RX" and TH[i1] == 1.57079632679 and AC1[i1] == AC1[i]):
+                        i2 = i1 + 1
+                        while G[i2] != "MEASURE":
+                            if (G[i2] == "RZ" and TH[i2] == 3.14159265358 and AC1[i2] == AC1[i]):
+                                TH[i] = TH[i]+TH[i2]
+                                TH[i1] = -TH[i1]
+                                del G[i2];TH = np.delete(TH,i2);
+                                AC1 = np.delete(AC1,i2); AC2 = np.delete(AC2,i2);
+                                loop_breaker = 3
+                                break
+                            elif (G[i2] == "RZ" and TH[i2] != 3.14159265358 and AC1[i2] == AC1[i]):
+                                loop_breaker = 3
+                                break
+                            i2 = i2 + 1                         
+                    if (loop_breaker == 3):
+                        break
+                    i1 = i1 + 1
+            i = i + 1
+
+        
+        p = Program(RESET()) #compressed program
+        ro = p.declare('ro', memory_type='BIT', memory_size=nqubits)
+
+        for i in range(len(G)):
+            if (G[i] == "RX"):
+                p.inst(RX(TH[i], int(AC1[i])))
+            if (G[i] == "RZ"):
+                p.inst(RZ(TH[i], int(AC1[i])))
+            if (G[i] == "CZ"):
+                p.inst(CZ(int(AC1[i]), int(AC2[i])))
+        for i in range(0,nqubits):
+            p.inst(MEASURE(i, ro[i]))
+        return p
 
 
 
-
-
-
-
-
-
-
-
-    ##################    Relic Zone    ################################################################################################################
-
-        # def evolution_circuit(self, evol_time,circ_name=None):      #old IBM-centric version
-    #         """
-    #         Define circuit for evolution of wavefunction, i.e.,
-    #         H(t) = - Jz * sum_{i=1}^{N-1}(sigma_{z}^{i} * sigma_{z}^{i+1})
-    #                      - e_ph * cos(w_ph * t) * sum_{i=1}^{N}(sigma_{x}^{i})
-            
-    #         Returns:
-    #         - A quantum circuit representating the propagation of the system.
-    #         """
-            
-    #         assert self.num_qubits == self.qr.size    
-    #         prop_steps = int(evol_time / self.delta_t)  # number of propagation steps
-            
-    #         # Instantiate quantum circuit for the propagator to which
-    #         #-we add terms of Hamiltonian piece by piece
-    #         circuit = qk.QuantumCircuit(self.qr, self.cr)
-    #         if circ_name:
-    #                 circuit.name = circ_name
-    #         index=0
-    #         for flip in self.flip_vec:
-    #             if int(flip)==1:
-    #                 circuit.x(self.qr[index])
-    #                 index+=1
-    #             else: index+=1
-    #         circuit.barrier()
-
-
-
-    #         for step in range(prop_steps):
-    #             t = (step + 0.5) * self.delta_t
-
-
-    #             if "n" in self.time_dep_flag:
-    #                 psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
-    #             elif "y" in self.time_dep_flag:
-    #                 if "y" in self.custom_time_dep:
-    #                     psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
-    #                 elif "n" in self.custom_time_dep:
-    #                     psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
-    #                 else:
-    #                     print("Invalid selection for custom_time_dep parameter. Please enter y or n.")
-    #                     self.logfile.write("Invalid selection for custom_time_dep parameter. Please enter y or n.\n")
-    #                     break
-    #             prop_circ = qk.QuantumCircuit(self.qr)
-
-    #             if self.ext_dir in "Z":
-    #                 #Z-Direction External Field Term
-    #                 prop_circ.rz(psi_ext,self.qr)
-    #             elif self.ext_dir in "X":
-    #                 #X-Direction External Field Term
-    #                 prop_circ.h(self.qr)
-    #                 prop_circ.rz(psi_ext,self.qr)
-    #                 prop_circ.h(self.qr)
-
-    #             elif self.ext_dir in "Y":
-    #                 #Y-Direction External Field Term
-    #                 prop_circ.rx(-np.pi/2,self.qr)
-    #                 prop_circ.rz(psi_ext,self.qr)
-    #                 prop_circ.rx(np.pi/2,self.qr)
-
-    #             #XX Coupling Term
-    #             psi2=-2.0*(self.JX)*self.delta_t/self.H_BAR
-    #             for i in range(self.num_qubits-1):
-    #                 prop_circ.h(self.qr[i])
-    #                 prop_circ.h(self.qr[i+1])
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #                 prop_circ.rz(psi2, self.qr[i+1])
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #                 prop_circ.h(self.qr[i])
-    #                 prop_circ.h(self.qr[i+1])
-    #             #YY Coupling Term
-    #             psi2=-2.0*(self.JY)*self.delta_t/self.H_BAR
-    #             for i in range(self.num_qubits-1):
-    #                 prop_circ.rx(-np.pi/2,self.qr[i])
-    #                 prop_circ.rx(-np.pi/2,self.qr[i+1])
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #                 prop_circ.rz(psi2, self.qr[i+1])
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #                 prop_circ.rx(np.pi/2,self.qr[i])
-    #                 prop_circ.rx(np.pi/2,self.qr[i+1])
-    #             # ZZ Coupling Term
-    #             psi2 = -2.0 * self.JZ * self.delta_t / self.H_BAR
-    #             for i in range(self.num_qubits-1):
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #                 prop_circ.rz(psi2, self.qr[i+1])
-    #                 prop_circ.cx(self.qr[i], self.qr[i+1])
-    #             # Concatenate circuites
-    #             circuit += prop_circ
-    #             #circuit.barrier(qr)
-    #         # Add measurement operation
-    #         circuit.measure(self.qr, self.cr)
-
-            # if self.JZ != 0 and self.JX==self.JY==0:
-            #     from smart_compile_native import smart_compile
-            #     if self.h_ext != 0:
-            #         if self.ext_dir in "X":
-            #             if self.print_bool==0:
-            #                 print("Ising model detected, smart compiler enabled")
-            #                 self.logfile.write("Ising model detected, smart compiler enabled")
-            #                 self.print_bool=1
-            #             circuit=smart_compile(circuit.data,self.num_qubits)
-            #             self.smart_bool=True
-            #     else:
-            #         if self.print_bool==0:
-            #             print("Ising model detected, smart compiler enabled")
-            #             self.logfile.write("Ising model detected, smart compiler enabled")
-            #             self.print_bool=1
-            #         circuit=smart_compile(circuit.data,self.num_qubits)
-            #         self.smart_bool=True
-
-            # return circuit
