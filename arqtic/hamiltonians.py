@@ -1,4 +1,4 @@
-import program
+from .program import Program, Pauli, Term, Gate
 
 class Hamiltonian:
     def __init__(self, nqubits, terms):

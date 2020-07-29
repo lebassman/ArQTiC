@@ -1,4 +1,4 @@
-import program
+from .program import Program
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 
