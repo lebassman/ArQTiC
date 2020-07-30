@@ -13,20 +13,11 @@
 #import necessary libraries
 import sys
 import numpy as np
-import qiskit as qk
-from qiskit.tools.monitor import job_monitor
-from qiskit.visualization import plot_histogram, plot_gate_map, plot_circuit_layout
 
-from qiskit import Aer, IBMQ, execute
-from qiskit.providers.aer import noise
-from qiskit.providers.aer.noise import NoiseModel
 import matplotlib.pyplot as plt
 import os
-from qiskit.circuit import quantumcircuit
-from qiskit.circuit import Instruction
 
-from pyquil.quil import Program
-from pyquil.gates import RX, RZ, CZ, RESET, MEASURE
+
 
 current=os.getcwd()
 newdir="Data"
@@ -266,6 +257,22 @@ class Heisenberg:
                     self.time_func=external_func
 
 
+        if self.backend in "ibm":
+            import qiskit as qk
+            from qiskit.tools.monitor import job_monitor
+            from qiskit.visualization import plot_histogram, plot_gate_map, plot_circuit_layout
+            from qiskit import Aer, IBMQ, execute
+            from qiskit.providers.aer import noise
+            from qiskit.providers.aer.noise import NoiseModel
+            from qiskit.circuit import quantumcircuit
+            from qiskit.circuit import Instruction
+        elif self.backend in "rigetti":
+            import pyquil
+            from pyquil.quil import Program
+            from pyquil.gates import RX, RZ, CZ, RESET, MEASURE
+        elif self.backend in "cirq":
+            import cirq
+
         if "y" in self.plot_flag:
             import matplotlib.pyplot as plt
 
@@ -457,12 +464,47 @@ class Heisenberg:
 
 
     def generate_rigetti(self):
-        print("Creating Pyquil program...")
-        self.logfile.write("Creating Pyquil program...")
-        #Not finished yet
+        print("Creating Pyquil program list...")
+        self.logfile.write("Creating Pyquil program list...")
+        for circuit in self.circuits_list:
+            p = Program(RESET()) #compressed program
+            ro = p.declare('ro', memory_type='BIT', memory_size=self.num_qubits)
+            for gate in circuit.gates:
+                if gate.name in "H":
+                    p.inst(H(self.qubits))
+                elif gate.name in "RZ":
+                    p.inst(RZ(self.angles,self.qubits))
+                elif gate.name in "RX":
+                    p.inst(RX(self.angles,self.qubits))
+                elif gate.name in "CNOT":
+                    p.inst(CZ(self.qubits))
+            for i in range(self.num_qubits):
+                p.inst(MEASURE(i,ro[i]))
+            rigetti_circuits_list.append(p)
+        print("Pyquil program list created successfully")
+        self.logfile.write("Pyquil program list created successfully")
 
     def generate_cirq(self):
-        #placeholder
+        print("Creating Cirq circuit list...")
+        self.logfile.write("Creating Cirq circuit list...")
+        for circuit in self.circuits_list:
+            c=cirq.Circuit()
+            qubit_list=cirq.LineQubit.range(self.num_qubits)
+            gate_list=[]
+            for gate in circuit.gates:
+                if gate.name in "H":
+                    gate_list.append(cirq.H(qubit_list[self.qubits]))
+                elif gate.name in "RZ":
+                    gate_list.append(cirq.rz(self.angles)(qubit_list[self.qubits]))
+                elif gate.name in "RX":
+                    gate_list.append(cirq.rx(self.angles)(qubit_list[self.qubits]))
+                elif gate.name in "CNOT":
+                    gate_list.append(cirq.CNOT(qubit_list[self.qubits]))
+            gate_list.append(cirq.measure(qubit_list))
+            c.append(gate_list,strategy=InsertStrategy.EARLIEST)
+            cirq_circuits_list.append(c)
+        print("Successfully created Cirq circuit list")
+        self.logfile.write("Successfully created Cirq circuit list")
 
     def generate_circuits(self):
         self.generate_local_circuits()
