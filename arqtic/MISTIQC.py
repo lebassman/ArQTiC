@@ -17,7 +17,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+#IBM imports 
+import qiskit as qk
+from qiskit.tools.monitor import job_monitor
+from qiskit.visualization import plot_histogram, plot_gate_map, plot_circuit_layout
+from qiskit import Aer, IBMQ, execute
+from qiskit.providers.aer import noise
+from qiskit.providers.aer.noise import NoiseModel
+from qiskit.circuit import quantumcircuit
+from qiskit.circuit import Instruction
 
+#Rigettti imports
+import pyquil
+from pyquil.quil import Program
+from pyquil.gates import *
+from pyquil.api import get_qc
+
+
+#Cirq imports
+import cirq
 
 current=os.getcwd()
 newdir="Data"
@@ -203,7 +221,8 @@ class Heisenberg:
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
         self.auto_smart_compile="y"
-        self.default_compiler-"native" #native or smart
+        self.default_compiler="native" #native or smart
+        self.compile="y"
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -244,6 +263,8 @@ class Heisenberg:
                 self.time_dep_flag=value
             elif "*default_compiler" in data[i]:
                 self.default_compiler=value
+            elif "*compile" in data[i]:
+                self.compile=value
             elif "*ext_dir" in data[i]:
                 self.ext_dir=value
             elif "*auto_smart_compile" in data[i]:
@@ -255,30 +276,14 @@ class Heisenberg:
                     print("Found an external time dependence function")
                     self.logfile.write("Found an external time dependence function")
                     self.time_func=external_func
-
-
-        if self.backend in "ibm":
-            import qiskit as qk
-            from qiskit.tools.monitor import job_monitor
-            from qiskit.visualization import plot_histogram, plot_gate_map, plot_circuit_layout
-            from qiskit import Aer, IBMQ, execute
-            from qiskit.providers.aer import noise
-            from qiskit.providers.aer.noise import NoiseModel
-            from qiskit.circuit import quantumcircuit
-            from qiskit.circuit import Instruction
-        elif self.backend in "rigetti":
-            import pyquil
-            from pyquil.quil import Program
-            from pyquil.gates import RX, RZ, CZ, RESET, MEASURE
-        elif self.backend in "cirq":
-            import cirq
-
         if "y" in self.plot_flag:
             import matplotlib.pyplot as plt
 
-
         self.initial_spins=self.initial_spins.split(',')
 
+        if "ibm" in self.backend:
+            self.qr=qk.QuantumRegister(self.num_qubits, 'q')
+            self.cr=qk.ClassicalRegister(self.num_qubits, 'c')
 
         self.total_time=int(self.delta_t*self.steps)
 
@@ -297,19 +302,32 @@ class Heisenberg:
                 print('Invalid spin entered')
                 self.logfile.write("Invalid spin entered\n")
 
-        if self.backend in "ibm":
-            ## Declare registers
+    def imports(self):
+        if "ibm" in self.backend:
+            import qiskit as qk
+            from qiskit.tools.monitor import job_monitor
+            from qiskit.visualization import plot_histogram, plot_gate_map, plot_circuit_layout
+            from qiskit import Aer, IBMQ, execute
+            from qiskit.providers.aer import noise
+            from qiskit.providers.aer.noise import NoiseModel
+            from qiskit.circuit import quantumcircuit
+            from qiskit.circuit import Instruction
             self.qr = qk.QuantumRegister(self.num_qubits, 'q')
             self.cr = qk.ClassicalRegister(self.num_qubits, 'c')
-
+        elif "rigetti" in self.backend:
+            import pyquil
+            from pyquil.quil import Program
+            from pyquil.gates import RX, RZ, CZ, RESET, MEASURE
+        elif "cirq" in self.backend:
+            import cirq
 
 
 
     def local_evolution_circuit(self,evol_time): #creates evolution circuit in local program
     #Initial flipped spins are not implemented in this function due to the need for "barrier". Need to do that outside of this.
         prop_steps = int(evol_time / self.delta_t)  # number of propagation steps
-        P=program(self,num_qubits)
-        for t in range(prop_steps):
+        P=Program(self.num_qubits)
+        for step in range(prop_steps):
             t = (step + 0.5) * self.delta_t
             if "n" in self.time_dep_flag:
                 psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
@@ -337,7 +355,6 @@ class Heisenberg:
                     ext_instr_set.append(Gate('RX', [q], angles=[np.pi/2]))
                 elif self.ext_dir in "Z":
                     ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
-
             psiX=-2.0*(self.JX)*self.delta_t/self.H_BAR
             psiY=-2.0*(self.JY)*self.delta_t/self.H_BAR
             psiZ=-2.0*(self.JZ)*self.delta_t/self.H_BAR
@@ -367,6 +384,7 @@ class Heisenberg:
             P.add_instr(XX_instr_set)
             P.add_instr(YY_instr_set)
             P.add_instr(ZZ_instr_set)
+        return P
 
     def generate_local_circuits(self):
 
@@ -375,7 +393,7 @@ class Heisenberg:
         for j in range(0, self.steps+1):
             print("Generating timestep {} circuit".format(j))
             evolution_time = self.delta_t * j
-            circuits.append(self.local_evolution_circuit(self,evolution_time))
+            circuits.append(self.local_evolution_circuit(evolution_time))
 
         self.circuits_list=circuits
 
@@ -383,104 +401,140 @@ class Heisenberg:
     def generate_ibm(self):
         #convert from local circuits to IBM-specific circuit
 
-        ## Show available backends
-        provider = qk.IBMQ.get_provider(group='open')
-        provider.backends()
+        if "y" in self.compile:
+            ## Show available backends
+            provider = qk.IBMQ.get_provider(group='open')
+            provider.backends()
 
-        #choose the device you would like to run on
-        device = provider.get_backend(self.device_choice)
+            #choose the device you would like to run on
+            device = provider.get_backend(self.device_choice)
 
-        #gather fidelity statistics on this device if you want to create a noise model for the simulator
-        properties = device.properties()
-        coupling_map = device.configuration().coupling_map
+            #gather fidelity statistics on this device if you want to create a noise model for the simulator
+            properties = device.properties()
+            coupling_map = device.configuration().coupling_map
 
-        #TO RUN ON THE SIMULATOR 
-        #create a noise model to use for the qubits of the simulator
-        noise_model = NoiseModel.from_backend(device)
-        # Get the basis gates for the noise model
-        basis_gates = noise_model.basis_gates
+            #TO RUN ON THE SIMULATOR 
+            #create a noise model to use for the qubits of the simulator
+            noise_model = NoiseModel.from_backend(device)
+            # Get the basis gates for the noise model
+            basis_gates = noise_model.basis_gates
 
-        # Select the QasmSimulator from the Aer provider
-        simulator = Aer.get_backend('qasm_simulator')
+            # Select the QasmSimulator from the Aer provider
+            simulator = Aer.get_backend('qasm_simulator')
 
 
-        #To run on the quantum computer, assign a quantum computer of your choice as the backend 
-        backend = provider.get_backend(self.device_choice)
+            #To run on the quantum computer, assign a quantum computer of your choice as the backend 
+            backend = provider.get_backend(self.device_choice)
 
 
         print("Creating IBM quantum circuit objects...")
         self.logfile.write("Creating IBM quantum circuit objects...")
+        name=0
         for circuit in self.circuits_list:
-            circ = qk.QuantumCircuit(self.qr, self.cr)
+            propcirc = qk.QuantumCircuit(self.qr, self.cr)
             index=0
             for flip in self.flip_vec:
                 if int(flip)==1:
-                    circ.x(self.qr[index])
+                    propcirc.x(self.qr[index])
                     index+=1
                 else: index+=1
-            circ.barrier()
+            propcirc.barrier()
             for gate in circuit.gates:
-                if gate.name in "H":
-                    circ.h(self.qubits)
-                elif gate.name in "RZ":
-                    circ.rz(self.angles,self.qubits)
-                elif gate.name in "RX":
-                    circ.rx(self.angles,self.qubits)
-                elif gate.name in "CNOT":
-                    circ.cx(self.qubits)
-            circ.measure(self.qr,self.cr)
-            self.ibm_circuits_list.append(circ)
+                if "H" in gate.name:
+                    propcirc.h(gate.qubits[0])
+                elif "RZ" in gate.name:
+                    propcirc.rz(gate.angles[0],gate.qubits[0])
+                elif "RX" in gate.name:
+                    propcirc.rx(gate.angles[0],gate.qubits[0])
+                elif "CNOT" in gate.name:
+                    propcirc.cx(gate.qubits[0],gate.qubits[1])
+            propcirc.measure(self.qr,self.cr)
+            self.ibm_circuits_list.append(propcirc)
         print("IBM quantum circuit objects created")
         self.logfile.write("IBM quantum circuit objects created")
+        print(self.ibm_circuits_list[20].qasm())
 
-        if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
-            #TFIM
-            print("TFIM detected, enabling smart compiler")
-            self.logfile.write("TFIM detected, enabling smart compiler")
-            temp=[]
-            for circuit in self.ibm_circuits_list:
-                temp.append(smart_compile(circuit,self.backend))
-            self.ibm_circuits_list=temp
+        if "y" in self.compile:
+            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
+                #TFIM
+                print("TFIM detected, enabling smart compiler")
+                self.logfile.write("TFIM detected, enabling smart compiler")
+                temp=[]
+                for circuit in self.ibm_circuits_list:
+                    compiled=smart_compile(circuit,self.backend)
+                    temp.append(compiled)
+                self.ibm_circuits_list=temp
 
-        elif self.default_compiler in "smart":
-            temp=[]
-            print("Compiling circuits...")
-            self.logfile.write("Compiling circuits...")
-            for circuit in self.ibm_circuits_list:
-                temp.append(smart_compile(circuit,self.backend))
-            self.ibm_circuits_list=temp
-            print("Circuits compiled successfully")
-            self.logfile.write("Circuits compiled successfully")
-        elif self.default_compiler in "native":
-            temp=[]
-            print("Transpiling circuits...")
-            self.logfile.write("Transpiling circuits...")
-            for circuit in self.ibm_circuits_list:
-                circ = qk.transpile(circuits, backend=backend, optimization_level=3)
-                temp.append(circ)
-            self.ibm_circuits_list=temp
-            print("Circuits transpiled successfully")
-            self.logfile.write("Circuits transpiled successfully")
+            elif self.default_compiler in "smart":
+                temp=[]
+                print("Compiling circuits...")
+                self.logfile.write("Compiling circuits...")
+                for circuit in self.ibm_circuits_list:
+                    compiled=smart_compile(circuit,self.backend)
+                    temp.append(compiled)
+                self.ibm_circuits_list=temp
+                print("Circuits compiled successfully")
+                self.logfile.write("Circuits compiled successfully")
+            elif self.default_compiler in "native":
+                temp=[]
+                print("Transpiling circuits...")
+                self.logfile.write("Transpiling circuits...")
+                self.ibm_circuits_list=qk.transpile(self.ibm_circuits_list,backend=backend,optimization_level=3)
+                print("Circuits transpiled successfully")
+                self.logfile.write("Circuits transpiled successfully")
 
 
     def generate_rigetti(self):
         print("Creating Pyquil program list...")
         self.logfile.write("Creating Pyquil program list...")
         for circuit in self.circuits_list:
-            p = Program(RESET()) #compressed program
+            p = pyquil.Program(RESET()) #compressed program
             ro = p.declare('ro', memory_type='BIT', memory_size=self.num_qubits)
             for gate in circuit.gates:
                 if gate.name in "H":
-                    p.inst(H(self.qubits))
+                    p.inst(pyquil.gates.H(gate.qubits[0]))
                 elif gate.name in "RZ":
-                    p.inst(RZ(self.angles,self.qubits))
+                    p.inst(pyquil.gates.RZ(gate.angles[0],gate.qubits[0]))
                 elif gate.name in "RX":
-                    p.inst(RX(self.angles,self.qubits))
+                    p.inst(pyquil.gates.RX(gate.angles[0],gate.qubits[0]))
                 elif gate.name in "CNOT":
-                    p.inst(CZ(self.qubits))
+                    p.inst(pyquil.gates.CNOT(gate.qubits[0],gate.qubits[1]))
             for i in range(self.num_qubits):
-                p.inst(MEASURE(i,ro[i]))
-            rigetti_circuits_list.append(p)
+                p.inst(pyquil.gates.MEASURE(i,ro[i]))
+            p.wrap_in_numshots_loop(self.shots)
+            self.rigetti_circuits_list.append(p)
+
+        if "y" in self.compile:
+            qc=get_qc(self.device_choice)
+            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
+                #TFIM
+                print("TFIM detected, enabling smart compiler")
+                self.logfile.write("TFIM detected, enabling smart compiler")
+                temp=[]
+                for circuit in self.rigetti_circuits_list:
+                    temp.append(smart_compile(circuit,self.backend))
+                self.rigetti_circuits_list=temp
+
+            elif self.default_compiler in "smart":
+                temp=[]
+                print("Compiling circuits...")
+                self.logfile.write("Compiling circuits...")
+                for circuit in self.rigetti_circuits_list:
+                    temp.append(smart_compile(circuit,self.backend))
+                self.rigetti_circuits_list=temp
+                print("Circuits compiled successfully")
+                self.logfile.write("Circuits compiled successfully")
+            elif self.default_compiler in "native":
+                temp=[]
+                print("Transpiling circuits...")
+                self.logfile.write("Transpiling circuits...")
+                for circuit in self.rigetti_circuits_list:
+                    circ = qc.compile(circuit)
+                    temp.append(circ)
+                self.rigetti_circuits_list=temp
+                print("Circuits transpiled successfully")
+                self.logfile.write("Circuits transpiled successfully")
+
         print("Pyquil program list created successfully")
         self.logfile.write("Pyquil program list created successfully")
 
@@ -493,20 +547,22 @@ class Heisenberg:
             gate_list=[]
             for gate in circuit.gates:
                 if gate.name in "H":
-                    gate_list.append(cirq.H(qubit_list[self.qubits]))
+                    gate_list.append(cirq.H(qubit_list[gate.qubits[0]]))
                 elif gate.name in "RZ":
-                    gate_list.append(cirq.rz(self.angles)(qubit_list[self.qubits]))
+                    gate_list.append(cirq.rz(gate.angles[0])(qubit_list[gate.qubits[0]]))
                 elif gate.name in "RX":
-                    gate_list.append(cirq.rx(self.angles)(qubit_list[self.qubits]))
+                    gate_list.append(cirq.rx(gate.angles[0])(qubit_list[gate.qubits[0]]))
                 elif gate.name in "CNOT":
-                    gate_list.append(cirq.CNOT(qubit_list[self.qubits]))
-            gate_list.append(cirq.measure(qubit_list))
-            c.append(gate_list,strategy=InsertStrategy.EARLIEST)
-            cirq_circuits_list.append(c)
+                    gate_list.append(cirq.CNOT(qubit_list[gate.qubits[0]],qubit_list[gate.qubits[1]]))
+            for i in range(self.num_qubits):
+                gate_list.append(cirq.measure(qubit_list[i]))
+            c.append(gate_list,strategy=cirq.InsertStrategy.EARLIEST)
+            self.cirq_circuits_list.append(c)
         print("Successfully created Cirq circuit list")
         self.logfile.write("Successfully created Cirq circuit list")
 
     def generate_circuits(self):
+        # self.imports()
         self.generate_local_circuits()
         if self.backend in "ibm":
             self.generate_ibm()
@@ -535,6 +591,7 @@ class Heisenberg:
         return self.result_matrix
 
     def return_circuits(self):
+        self.generate_circuits()
         if self.backend in "ibm":
             return self.ibm_circuits_list
         elif self.backend in "rigetti":
@@ -600,7 +657,7 @@ class Heisenberg:
             #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
             if self.QCQS in ["QC"]:
                 #quantum computer execution
-                job = qk.execute(self.circuits_list, backend=backend, shots=self.shots)
+                job = qk.execute(self.ibm_circuits_list, backend=backend, shots=self.shots)
                 job_monitor(job)
 
             elif self.QCQS in ["QS"]:
@@ -608,12 +665,12 @@ class Heisenberg:
                 if self.noise_choice in ["y"]:
                     print("Running noisy simulator job...")
                     self.logfile.write("Running noisy simulator job...\n")
-                    result_noise = execute(self.circuits_list, simulator, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                    result_noise = execute(self.ibm_circuits_list, simulator, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
                     print("Noisy simulator job successful")
                 elif self.noise_choice in ["n"]:
                     print("Running noiseless simulator job...")
                     self.logfile.write("Running noiseless simulator job...\n")
-                    result_noise=execute(self.circuits_list,simulator,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                    result_noise=execute(self.ibm_circuits_list,simulator,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
                     print("Noiseless simulator job successful")
                     self.logfile.write("Noiseless simulator job successful")
                 else: 
@@ -638,7 +695,7 @@ class Heisenberg:
                     i = 1
                     print("Post-processing qubit {} data".format(j+1))
                     self.logfile.write("Post-processing qubit {} data\n".format(j+1))
-                    for c in self.circuits_list:
+                    for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
                         temp.append(self.average_magnetization(result_dict, self.shots,j))
                         if i % self.steps == 0:
@@ -669,7 +726,7 @@ class Heisenberg:
                     i = 1
                     print("Post-processing qubit {} data".format(j+1))
                     self.logfile.write("Post-processing qubit {} data\n".format(j+1))
-                    for c in self.circuits_list:
+                    for c in self.ibm_circuits_list:
                             result_dict = results.get_counts(c)
                             temp.append(self.average_magnetization(result_dict, self.shots,j))
                             if i % self.steps == 0:
@@ -690,6 +747,41 @@ class Heisenberg:
                 self.result_matrix=np.stack(self.result_out_list)           
                 print("Done")
                 self.logfile.write("Done\n")
+        elif "rigetti" in self.backend:
+
+            qc=get_qc(self.device)
+            outer=[]
+            first_ind=0
+            #each circuit represents one timestep
+            for circuit in rigetti_circuits_list:
+                temp=qc.run(circuit)
+                results_list.append(temp)
+            for i in range(self.num_qubits):
+                qubit_specific_row=np.zeros(len(results))
+                for j in range(len(rigetti_circuits_list)):
+                    result=results_list[j]
+                    summation=0
+                    for array in results:
+                        summation+=1-2*array[i]
+                    summation=summation/len(results) #average over the number of shots
+                    qubit_specific_row[j]=summation
+                if first_ind==0:
+                    self.result_matrix=qubit_specific_row
+                else:
+                    self.result_matrix=np.stack(self.result_matrix,qubit_specific_row)
+                if "y" in self.plot_flag:
+                    plt.figure()
+                    plt.plot(range(self.steps), qubit_specific_row)
+                    plt.xlabel("Simulation Timestep")
+                    plt.ylabel("Average Magnetization")
+                    plt.savefig("Data/Result_qubit{}.png".format(j+1))
+                    plt.close()
+
+
+
+
+
+
 
 
 
@@ -697,7 +789,7 @@ class Heisenberg:
 ############    Pure Smart Compiler Functionality   #######################################################################################################################################
 #If the user just wants to pass an existing circuit object through the smart compilers
 def smart_compile(circ_obj,circ_type):
-    if circ_type in "qiskit":
+    if circ_type in "ibm":
         nqubits=circ_obj.num_qubits    
         #Read the gate in right vector form
         # G = Gate type

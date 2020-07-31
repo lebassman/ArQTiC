@@ -11,6 +11,8 @@
 0.01183898
 
 
+
+
 *h_ext 
 0.01775847
 
@@ -48,7 +50,7 @@ QS
 
 
 *device
-ibmq_16_melbourne
+8q-qvm
 
 *noise_choice
 y
@@ -58,3 +60,6 @@ X
 
 *plot_flag
 y
+
+*backend
+rigetti
