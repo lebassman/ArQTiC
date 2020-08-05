@@ -117,10 +117,13 @@ class Program:
             if (bitstring[i] == 1):
                 self.gates.append(Gate("X", [i]))
                 
-    def make_rand_measurement_prog(self):
+    def make_rand_obersvable_prog(self):
         for q in range(self.nqubits):
             self.gates.append(Gate(random.choice(["I", "X", "Y", "Z"]), [q]))
             
+    def get_x_basis_prog(self):
+        for q in range(self.nqubits):
+            self.gates.append(Gate("H", [q]))
                 
     def make_hamEvol_prog(self, time_step, dtau, dt, lambda_protocol, ising_ham):
         trotter_steps = int(dtau/dt) #number of Trotter-steps per time-step

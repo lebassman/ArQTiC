@@ -40,18 +40,20 @@ lamba_protocol = np.linspace((dtau/tau),1.0,num_steps)
 simulator = Aer.get_backend('qasm_simulator')
 
 
-#all programs run will be a combintaion of three sub-programs:
-# 1.prog_ips to create the intial product state
+#all programs run will be a combintaion of four sub-programs:
+# 1. prog_ips to create the intial product state
 # 2. prog_qmetts to evolve to the intial thermal state
 # 3. prog_hamEvol to evolve the system to a given time-step of the trajectory
-
-## Create list of programs to be run
-programs = []
+# 4. prog_xBasis to move to x-basis to prepare for measurement
 
 #create prog_qmetts
 prog_qmetts = Program(N)
 ham0 = Ising_Hamiltonian(N, Jz, [0,0,0])
 #prog_qmetts.make_qmetts_prog(beta, dbeta, ham0)
+
+#create prog_meas
+prog_xBasis = Program(N)
+prog_xBasis.get_x_basis_prog()
 
 #get list of measured_metts_states from which to start each trajectory
 measured_metts_state = []
@@ -66,12 +68,12 @@ for i in range(T):
     prog.make_ps_prog(measured_metts_state[i])
     prog.append_program(prog_qmetts)
     #make random measurement operator
-    rand_meas_prog = Program(N)
-    rand_meas_prog.make_rand_measurement_prog()
-    prog.append_program(rand_meas_prog)
+    if (i%2 == 0):
+        prog.append_program(prog_xBasis)
     measured_metts_state.append(run_ibm(simulator, prog))
 
-
+## Create list of programs to be run
+programs = []
 #loop over trajectories
 for i in range(T):
     #make the initial product state program
@@ -87,6 +89,7 @@ for i in range(T):
         prog_main.append_program(prog_ips)
         prog_main.append_program(prog_qmetts)
         prog_main.append_program(prog_hamEvol)
+        prog_main.append_program(prog_xBasis)
         programs.append(prog_main)
         
 
