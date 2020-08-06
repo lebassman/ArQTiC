@@ -380,10 +380,14 @@ class Heisenberg:
                 ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
 
-            P.add_instr(ext_instr_set)
-            P.add_instr(XX_instr_set)
-            P.add_instr(YY_instr_set)
-            P.add_instr(ZZ_instr_set)
+            if self.h_ext != 0:
+                P.add_instr(ext_instr_set)
+            if self.JX !=0:
+                P.add_instr(XX_instr_set)
+            if self.JY !=0:
+                P.add_instr(YY_instr_set)
+            if self.JZ !=0:
+                P.add_instr(ZZ_instr_set)
         return P
 
     def generate_local_circuits(self):
@@ -564,7 +568,7 @@ class Heisenberg:
         # self.imports()
         if len(self.circuits_list)==0:
             self.generate_local_circuits()
-        
+
         if self.backend in "ibm":
             self.generate_ibm()
         if self.backend in "rigetti":
@@ -592,12 +596,17 @@ class Heisenberg:
         return self.result_matrix
 
     def return_circuits(self):
-        self.generate_circuits()
         if self.backend in "ibm":
+            if len(self.ibm_circuits_list)==0:
+                self.generate_circuits()
             return self.ibm_circuits_list
         elif self.backend in "rigetti":
+            if len(self.rigetti_circuits_list)==0:
+                self.generate_circuits()
             return self.rigetti_circuits_list
         elif self.backend in "cirq":
+            if len(self.cirq_circuits_list)==0:
+                self.generate_circuits()
             return self.cirq_circuits_list
 
     def average_magnetization(self,result: dict, shots: int, qub: int):
@@ -699,7 +708,7 @@ class Heisenberg:
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
                         temp.append(self.average_magnetization(result_dict, self.shots,j))
-                        if i % self.steps == 0:
+                        if i % (self.steps+1) == 0:
                             avg_mag_sim.append(temp)
                             temp = []
                         i += 1
@@ -707,7 +716,7 @@ class Heisenberg:
                     # time_vec=time_vec*JX/H_BAR
                     if "y" in self.plot_flag:
                         plt.figure()
-                        plt.plot(range(self.steps), avg_mag_sim[0])
+                        plt.plot(range(self.steps+1), avg_mag_sim[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
                         plt.savefig("Data/Simulator_result_qubit{}.png".format(j+1))
@@ -730,7 +739,7 @@ class Heisenberg:
                     for c in self.ibm_circuits_list:
                             result_dict = results.get_counts(c)
                             temp.append(self.average_magnetization(result_dict, self.shots,j))
-                            if i % self.steps == 0:
+                            if i % (self.steps+1) == 0:
                                     avg_mag_qc.append(temp)
                                     temp = []
                             i += 1
@@ -738,7 +747,7 @@ class Heisenberg:
                     # QC
                     if "y" in self.plot_flag:
                         plt.figure()
-                        plt.plot(range(self.steps), avg_mag_qc[0])
+                        plt.plot(range(self.steps+1), avg_mag_qc[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
                         plt.savefig("Data/QC_result_qubit{}.png".format(j+1))
@@ -750,32 +759,38 @@ class Heisenberg:
                 self.logfile.write("Done\n")
         elif "rigetti" in self.backend:
 
-            qc=get_qc(self.device)
-            outer=[]
+            qc=get_qc(self.device_choice)
+            results_list=[]
             first_ind=0
             #each circuit represents one timestep
-            for circuit in rigetti_circuits_list:
+            for circuit in self.rigetti_circuits_list:
+                # print("Ay I got a circuit here")
                 temp=qc.run(circuit)
                 results_list.append(temp)
             for i in range(self.num_qubits):
-                qubit_specific_row=np.zeros(len(results))
-                for j in range(len(rigetti_circuits_list)):
-                    result=results_list[j]
+                qubit_specific_row=np.zeros(len(results_list))
+                for j in range(len(self.rigetti_circuits_list)):
+                    results=results_list[j]
+
                     summation=0
                     for array in results:
-                        summation+=1-2*array[i]
+                        summation+=(1-2*array[i])
+
                     summation=summation/len(results) #average over the number of shots
+
                     qubit_specific_row[j]=summation
                 if first_ind==0:
                     self.result_matrix=qubit_specific_row
+                    first_ind+=1
                 else:
-                    self.result_matrix=np.stack(self.result_matrix,qubit_specific_row)
+                    self.result_matrix=np.vstack((self.result_matrix,qubit_specific_row))
                 if "y" in self.plot_flag:
                     plt.figure()
-                    plt.plot(range(self.steps), qubit_specific_row)
+                    xaxis=np.linspace(0,self.steps,num=self.steps+1)
+                    plt.plot(qubit_specific_row)
                     plt.xlabel("Simulation Timestep")
                     plt.ylabel("Average Magnetization")
-                    plt.savefig("Data/Result_qubit{}.png".format(j+1))
+                    plt.savefig("Data/Result_qubit{}.png".format(i+1))
                     plt.close()
 
 
@@ -835,8 +850,8 @@ def smart_compile(circ_obj,circ_type):
                 AC1[i] = 0
                 AC2[i] =0
             i = i+1
-            
-            
+
+
             
         #Omit last and second-to-last CNOT for each qubit
         for qub in range(0,nqubits+1):
@@ -861,7 +876,8 @@ def smart_compile(circ_obj,circ_type):
                     G[i]  = "NULL"
                     break
                 i=i-1            
-                
+        
+
                 
         #Use CNOT (0,1) ->  H(0) H(1) CNOT(1,0) H(0) H(1)
         i=0
@@ -1383,7 +1399,7 @@ def smart_compile(circ_obj,circ_type):
             if (G[i] == "CZ"):
                 p.inst(pyquil.gates.CZ(int(AC1[i]), int(AC2[i])))
         for i in range(0,nqubits):
-            p.inst(MEASURE(i, ro[i]))
+            p.inst(pyquil.gates.MEASURE(i, ro[i]))
         return p
 
 

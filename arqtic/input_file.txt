@@ -53,7 +53,7 @@ QS
 ibmq_16_melbourne
 
 *noise_choice
-y
+n
 
 *ext_dir
 X
