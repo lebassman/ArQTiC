@@ -363,7 +363,7 @@ class Heisenberg:
                 XX_instr_set.append(Gate('H',[q]))
                 XX_instr_set.append(Gate('H',[q+1]))
                 XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('RZ', [q], angles=[psiX]))
+                XX_instr_set.append(Gate('RZ', [q+1], angles=[psiX]))
                 XX_instr_set.append(Gate('CNOT',[q, q+1]))
                 XX_instr_set.append(Gate('H',[q]))
                 XX_instr_set.append(Gate('H',[q+1]))
@@ -371,13 +371,13 @@ class Heisenberg:
                 YY_instr_set.append(Gate('RX',[q],angles=[-np.pi/2]))
                 YY_instr_set.append(Gate('RX',[q+1],angles=[-np.pi/2]))
                 YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RZ', [q], angles=[psiY]))
+                YY_instr_set.append(Gate('RZ', [q+1], angles=[psiY]))
                 YY_instr_set.append(Gate('CNOT',[q, q+1]))
                 YY_instr_set.append(Gate('RX',[q],angles=[np.pi/2]))
                 YY_instr_set.append(Gate('RX',[q+1],angles=[np.pi/2]))
 
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
-                ZZ_instr_set.append(Gate('RZ', [q], angles=[psiZ]))
+                ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
 
             P.add_instr(ext_instr_set)
@@ -453,9 +453,6 @@ class Heisenberg:
             self.ibm_circuits_list.append(propcirc)
         print("IBM quantum circuit objects created")
         self.logfile.write("IBM quantum circuit objects created")
-        print("##############################################################")
-        print("Printing pre-transpiled quantum circuit for debugging purposes: ")
-        print(self.ibm_circuits_list[2].qasm())
 
         if "y" in self.compile:
             if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
