@@ -418,7 +418,6 @@ class Heisenberg:
             noise_model = NoiseModel.from_backend(device)
             # Get the basis gates for the noise model
             basis_gates = noise_model.basis_gates
-            print("Basis Gates: {}".format(basis_gates))
 
             # Select the QasmSimulator from the Aer provider
             simulator = Aer.get_backend('qasm_simulator')
@@ -563,7 +562,9 @@ class Heisenberg:
 
     def generate_circuits(self):
         # self.imports()
-        self.generate_local_circuits()
+        if len(self.circuits_list)==0:
+            self.generate_local_circuits()
+        
         if self.backend in "ibm":
             self.generate_ibm()
         if self.backend in "rigetti":
@@ -1222,7 +1223,7 @@ def smart_compile(circ_obj,circ_type):
                   AC1 = np.insert(AC1,i+5,AC2[i]); AC2 = np.insert(AC2,i+5,0);
                   G.insert(i,"RZ"); TH = np.insert(TH,i,1.57079632679); 
                   AC1 = np.insert(AC1,i,AC2[i]); AC2 = np.insert(AC2,i,0);
-                  print("loop activated")
+                  # print("loop activated")
             i = i+1
         
         
@@ -1371,16 +1372,16 @@ def smart_compile(circ_obj,circ_type):
             i = i + 1
 
         
-        p = Program(RESET()) #compressed program
+        p = pyquil.Program(RESET()) #compressed program
         ro = p.declare('ro', memory_type='BIT', memory_size=nqubits)
 
         for i in range(len(G)):
             if (G[i] == "RX"):
-                p.inst(RX(TH[i], int(AC1[i])))
+                p.inst(pyquil.gates.RX(TH[i], int(AC1[i])))
             if (G[i] == "RZ"):
-                p.inst(RZ(TH[i], int(AC1[i])))
+                p.inst(pyquil.gates.RZ(TH[i], int(AC1[i])))
             if (G[i] == "CZ"):
-                p.inst(CZ(int(AC1[i]), int(AC2[i])))
+                p.inst(pyquil.gates.CZ(int(AC1[i]), int(AC2[i])))
         for i in range(0,nqubits):
             p.inst(MEASURE(i, ro[i]))
         return p

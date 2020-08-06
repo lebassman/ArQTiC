@@ -1,1 +1,8 @@
-Creating IBM quantum circuit objects...IBM quantum circuit objects createdTranspiling circuits...Circuits transpiled successfully
+Creating Cirq circuit list...Successfully created Cirq circuit listCreating Pyquil program list...Pyquil program list created successfullyCreating IBM quantum circuit objects...IBM quantum circuit objects createdTranspiling circuits...Circuits transpiled successfullyRunning noiseless simulator job...
+Noiseless simulator job successfulPost-processing qubit 1 data
+Post-processing qubit 2 data
+Post-processing qubit 3 data
+Post-processing qubit 4 data
+Post-processing qubit 5 data
+Post-processing qubit 6 data
+Done
