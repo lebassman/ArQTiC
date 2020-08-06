@@ -418,6 +418,7 @@ class Heisenberg:
             noise_model = NoiseModel.from_backend(device)
             # Get the basis gates for the noise model
             basis_gates = noise_model.basis_gates
+            print("Basis Gates: {}".format(basis_gates))
 
             # Select the QasmSimulator from the Aer provider
             simulator = Aer.get_backend('qasm_simulator')
@@ -452,7 +453,9 @@ class Heisenberg:
             self.ibm_circuits_list.append(propcirc)
         print("IBM quantum circuit objects created")
         self.logfile.write("IBM quantum circuit objects created")
-        print(self.ibm_circuits_list[20].qasm())
+        print("##############################################################")
+        print("Printing pre-transpiled quantum circuit for debugging purposes: ")
+        print(self.ibm_circuits_list[2].qasm())
 
         if "y" in self.compile:
             if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
@@ -476,10 +479,10 @@ class Heisenberg:
                 print("Circuits compiled successfully")
                 self.logfile.write("Circuits compiled successfully")
             elif self.default_compiler in "native":
-                temp=[]
                 print("Transpiling circuits...")
                 self.logfile.write("Transpiling circuits...")
-                self.ibm_circuits_list=qk.transpile(self.ibm_circuits_list,backend=backend,optimization_level=3)
+                temp=qk.compiler.transpile(self.ibm_circuits_list,backend=device,optimization_level=3)
+                self.ibm_circuits_list=temp
                 print("Circuits transpiled successfully")
                 self.logfile.write("Circuits transpiled successfully")
 
