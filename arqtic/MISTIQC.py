@@ -576,7 +576,7 @@ class Heisenberg:
         if self.backend in "cirq":
             self.generate_cirq()
 
-    def connect_account(self,api_key=None, overwrite=False):
+    def connect_IBM(self,api_key=None, overwrite=False):
         if api_key != None:
             if overwrite==False:
                 qk.IBMQ.save_account(api_key) ## only run once!

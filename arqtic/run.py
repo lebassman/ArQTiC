@@ -20,7 +20,7 @@ tester.backend="ibm"
 tester.device_choice="ibmq_16_melbourne"
 tester.auto_smart_compile="y"
 tester.noise_choice="n"
-tester.connect_account()
+tester.connect_IBM()
 tester.generate_circuits()
 # output=tester.return_circuits()
 # print(output[2].qasm())
