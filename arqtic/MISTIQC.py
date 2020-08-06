@@ -515,7 +515,7 @@ class Heisenberg:
                 self.logfile.write("TFIM detected, enabling smart compiler")
                 temp=[]
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend))
+                    temp.append(smart_compile(circuit,self.backend,self.shots))
                 self.rigetti_circuits_list=temp
 
             elif self.default_compiler in "smart":
@@ -523,7 +523,7 @@ class Heisenberg:
                 print("Compiling circuits...")
                 self.logfile.write("Compiling circuits...")
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend))
+                    temp.append(smart_compile(circuit,self.backend,self.shots))
                 self.rigetti_circuits_list=temp
                 print("Circuits compiled successfully")
                 self.logfile.write("Circuits compiled successfully")
@@ -758,6 +758,7 @@ class Heisenberg:
                 print("Done")
                 self.logfile.write("Done\n")
         elif "rigetti" in self.backend:
+            print("Length of rigetti circuits list: {}".format(len(self.rigetti_circuits_list)))
 
             qc=get_qc(self.device_choice)
             results_list=[]
@@ -771,6 +772,7 @@ class Heisenberg:
                 qubit_specific_row=np.zeros(len(results_list))
                 for j in range(len(self.rigetti_circuits_list)):
                     results=results_list[j]
+                    print("Number of arrays in results list (shots): {}".format(len(results)))
 
                     summation=0
                     for array in results:
@@ -779,6 +781,7 @@ class Heisenberg:
                     summation=summation/len(results) #average over the number of shots
 
                     qubit_specific_row[j]=summation
+                print(qubit_specific_row)
                 if first_ind==0:
                     self.result_matrix=qubit_specific_row
                     first_ind+=1
@@ -804,7 +807,7 @@ class Heisenberg:
 
 ############    Pure Smart Compiler Functionality   #######################################################################################################################################
 #If the user just wants to pass an existing circuit object through the smart compilers
-def smart_compile(circ_obj,circ_type):
+def smart_compile(circ_obj,circ_type,shots=1):
     if circ_type in "ibm":
         nqubits=circ_obj.num_qubits    
         #Read the gate in right vector form
@@ -1400,6 +1403,7 @@ def smart_compile(circ_obj,circ_type):
                 p.inst(pyquil.gates.CZ(int(AC1[i]), int(AC2[i])))
         for i in range(0,nqubits):
             p.inst(pyquil.gates.MEASURE(i, ro[i]))
+        p.wrap_in_numshots_loop(shots)
         return p
 
 
