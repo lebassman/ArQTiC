@@ -758,7 +758,6 @@ class Heisenberg:
                 print("Done")
                 self.logfile.write("Done\n")
         elif "rigetti" in self.backend:
-            print("Length of rigetti circuits list: {}".format(len(self.rigetti_circuits_list)))
 
             qc=get_qc(self.device_choice)
             results_list=[]
@@ -772,7 +771,6 @@ class Heisenberg:
                 qubit_specific_row=np.zeros(len(results_list))
                 for j in range(len(self.rigetti_circuits_list)):
                     results=results_list[j]
-                    print("Number of arrays in results list (shots): {}".format(len(results)))
 
                     summation=0
                     for array in results:
