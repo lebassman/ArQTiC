@@ -758,7 +758,8 @@ class Heisenberg:
                 print("Done")
                 self.logfile.write("Done\n")
         elif "rigetti" in self.backend:
-
+            print("Running Pyquil programs...")
+            self.logfile.write("Running Pyquil programs...\n")
             qc=get_qc(self.device_choice)
             results_list=[]
             first_ind=0
@@ -767,7 +768,10 @@ class Heisenberg:
                 # print("Ay I got a circuit here")
                 temp=qc.run(circuit)
                 results_list.append(temp)
+
             for i in range(self.num_qubits):
+                print("Post-processing qubit {} data...".format(i+1))
+                self.logfile.write("Post-processing qubit {} data...\n".format(i+1))
                 qubit_specific_row=np.zeros(len(results_list))
                 for j in range(len(self.rigetti_circuits_list)):
                     results=results_list[j]
@@ -779,7 +783,6 @@ class Heisenberg:
                     summation=summation/len(results) #average over the number of shots
 
                     qubit_specific_row[j]=summation
-                print(qubit_specific_row)
                 if first_ind==0:
                     self.result_matrix=qubit_specific_row
                     first_ind+=1
@@ -793,7 +796,8 @@ class Heisenberg:
                     plt.ylabel("Average Magnetization")
                     plt.savefig("Data/Result_qubit{}.png".format(i+1))
                     plt.close()
-
+            print("Done")
+            self.logfile.write("Done\n")
 
 
 
