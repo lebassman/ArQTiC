@@ -120,6 +120,28 @@ def compute_bvec(expectation_values, dbeta, h, norm):
     return b
 
 
+def qite_step(psi, pauli_basis, dbeta, h):
+    #get expectation values of Pauli basis operators for state psi
+    exp_values = get_exepctation_values_th(psi, pauli_basis)
+    #print("exp_values is: ", exp_values)
+    #compute S matrix
+    S_mat = compute_Smatrix(exp_values)
+    #compute norm of sum of Pauli basis ops on psi
+    norm = compute_norm(exp_values, dbeta, h)
+    #print("norm is: ", norm)
+    #print("h is: ", h)
+    #compute b-vector 
+    b_vec = compute_bvec(exp_values, dbeta, h, norm)
+    #solve linear equation for x
+    #dalpha = np.eye(len(pauli_basis))*regularizer
+    x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
+    #print("Smat is: ", S_mat)
+    #print("bvec is: ", b_vec)
+    #print("x is: ", x)
+    return x
+
+
+
 def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
     psi = psi0
     for i in range(len(A_ops)):
@@ -166,7 +188,8 @@ def Aop_to_Terms(A, domain):
               if (names[i][j] != "I"):
                   paulis.append(prog.Pauli(names[i][j],A[0][j]))
             term = prog.Term(paulis, coeff)
-            terms.append(term)
+            if (len(paulis) > 0):
+                terms.append(term)
     return terms
 
 

@@ -82,6 +82,9 @@ class Program:
         for gate in gate_list:
             self.gates.append(gate)
             
+    def add_gate(self, gate):
+        self.gates.append(gate)
+
     def append_program(self, program):
         self.nqubits = max(self.nqubits, program.nqubits)
         for gate in program.gates:
@@ -168,23 +171,8 @@ class Program:
                 A_ops[-1].append(qubits)
                 #get the array of coeffs for Pauli basis ops that act on these qubits
                 h = np.asarray(hterm[1])
-                #get expectation values of Pauli basis operators for state psi
-                exp_values = qite.get_exepctation_values_th(psi, pauli_basis)
-                #print("exp_values is: ", exp_values)
-                #compute S matrix
-                S_mat = qite.compute_Smatrix(exp_values)
-                #compute norm of sum of Pauli basis ops on psi
-                norm = qite.compute_norm(exp_values, dbeta, h)
-                #print("norm is: ", norm)
-                #print("h is: ", h)
-                #compute b-vector 
-                b_vec = qite.compute_bvec(exp_values, dbeta, h, norm)
-                #solve linear equation for x
-                #dalpha = np.eye(len(pauli_basis))*regularizer
-                x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-                #print("Smat is: ", S_mat)
-                #print("bvec is: ", b_vec)
-                #print("x is: ", x)
+                #get coeffs for qite circuit
+                x = qite.qite_step(psi, pauli_basis, dbeta, h)
                 op_coeffs = []
                 for i in range(len(x)):
                     if (np.abs(x[i]) > 1e-8):
@@ -192,7 +180,7 @@ class Program:
                     else: op_coeffs.append(0.0)
                 A_ops[-1].append(np.array(op_coeffs))
                 psi = qite.get_new_psi(psi, A_ops, pauli_basis, nspins, domain)
-        print("Aops is: ", A_ops)
+        #print("Aops is: ", A_ops)
         #convert A_ops into program
         self.nqubits = nspins
         names = qite.pauli_basis_names(domain)
@@ -210,11 +198,27 @@ class Program:
                 ppt = 1
                 for pauli in term.paulis:
                     ppt *= PauliTerm(pauli.name, pauli.qubit, term.coeff)
-        #exponentiate all the pauli terms and add to qite program
+                    pyquilPTs.append(ppt)
+        #print(pyquilPTs)
+        #exponentiate all the pyquil PauliTerms and add to qite program
         qite_prog = Program(nspins)
-            
-        #for term in pauli_terms:
-
+        for ppt in pyquilPTs:
+            exp_gate = exponential_map(ppt)(1.0)
+            #print(ppt)
+            #print(exp_gate)
+            #add exp_gate to program  
+            for inst in exp_gate.instructions:
+                #print(inst.name)
+                if (inst.name == "RZ"):
+                    #print(inst.params[0])
+                    #print(inst.qubits[0])
+                    qite_prog.add_gate(Gate("RZ", inst.qubits[0], inst.params[0]))	
+                if (inst.name == "RX"):
+                    qite_prog.add_gate(Gate("RX", inst.qubits[0], inst.params[0])) 
+                if (inst.name == "H"):
+                    qite_prog.add_gate(Gate("H", inst.qubits[0])) 
+                if (inst.name == "CNOT"):
+                    qite_prog.add_gate(Gate("CNOT", inst.qubits,))                
         return qite_prog
 
 
