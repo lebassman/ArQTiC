@@ -9,6 +9,7 @@ import numpy as np
 from arqtic.program import Program, random_bitstring
 from arqtic.hamiltonians import Ising_Hamiltonian
 from arqtic.arqtic_for_ibm import run_ibm
+import arqtic.QITE as qite
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 
@@ -18,10 +19,9 @@ N = 2 #number of qubits
 Jz = 0.1 #ising interaction strength
 mu_x = 0.3 #transverse magnetic field strength
 param_free_ham = Ising_Hamiltonian(2, Jz, [mu_x, 0, 0]) #parameter-free Hamiltonian
+ising_ham0 = Ising_Hamiltonian(2, Jz, [0.01, 0, 0]) #Hamiltonian at beginning of parameter sweep
 
 #define simulation variables
-beta = 1.0 #inverse temperature of systems
-dbeta = 0.1 #step-size in beta for QITE
 tau = 10 #total trajectory time to evolve lambda from 0 to 1
 dtau = 2.0 #time-step for trajectory
 num_steps = int(tau/dtau)
@@ -29,6 +29,11 @@ T = 2 #total number of trajectories
 dt =  dtau #timestep for Trotter approximation: setting equal to dtau means one trotter-step per time-step in evolution
 lamba_protocol = np.linspace((dtau/tau),1.0,num_steps)
     
+#define QITE variables
+beta = 1.0 #inverse temperature of systems
+dbeta = 0.2 #step-size in beta for QITE
+domain = 2 #domain of opertators for QITE
+
 
 #interfacing with IBM
 #load account
@@ -39,58 +44,62 @@ lamba_protocol = np.linspace((dtau/tau),1.0,num_steps)
 #set up simulator
 simulator = Aer.get_backend('qasm_simulator')
 
-
-#all programs run will be a combintaion of four sub-programs:
+#for each trajectory two main programs must be run
+#the first is for the QMETTS algorithm to generate the initial state for the next trajectory
+#this program, prog_qmetts comprises two (alternatingly three) sub-programs:
 # 1. prog_ips to create the intial product state
-# 2. prog_qmetts to evolve to the intial thermal state
-# 3. prog_hamEvol to evolve the system to a given time-step of the trajectory
+# 2. prog_qite to evolve to the intial thermal state
+# alternately apply (3. prog_xBasis to move to x-basis to prepare for measurement
+#the second is for the Hamiltonian evolution algorithm to get measurement fors the JE
+#this program, prog_JE comprises four sub-programs:
+# 1. prog_ips to create the intial product state
+# 2. prog_qite to evolve to the intial thermal state
+# 3. prog_hamEvol to evolve under system hamiltonian to each time step
 # 4. prog_xBasis to move to x-basis to prepare for measurement
 
-#create prog_qmetts
-prog_qmetts = Program(N)
-ham0 = Ising_Hamiltonian(N, Jz, [0,0,0])
-#prog_qmetts.make_qmetts_prog(beta, dbeta, ham0)
 
-#create prog_meas
+#create program to move to x-basis for measurement
 prog_xBasis = Program(N)
 prog_xBasis.get_x_basis_prog()
 
-#get list of measured_metts_states from which to start each trajectory
-measured_metts_state = []
 #first state should be random
-bitstring = random_bitstring(N)
-measured_metts_state.append(bitstring)
-
+measured_metts_state = random_bitstring(N)
 #subsequent entries are derived from running QMETTS on the previously derived
 #state and measuring a random observable to get the state for the subsequent run
-for i in range(T):
-    prog = Program(N)
-    prog.make_ps_prog(measured_metts_state[i])
-    prog.append_program(prog_qmetts)
-    #make random measurement operator
-    if (i%2 == 0):
-        prog.append_program(prog_xBasis)
-    measured_metts_state.append(run_ibm(simulator, prog))
 
-## Create list of programs to be run
-programs = []
+#need to sum work over each trajectory and then average over works
+work = []
 #loop over trajectories
 for i in range(T):
-    #make the initial product state program
-    prog_ips = Program(N)
-    prog_ips.make_ps_prog(measured_metts_state[i])
+    print(i)
+    psi0 = qite.get_state_from_string(measured_metts_state)
+    prog = Program(N)
+    prog.make_ps_prog(measured_metts_state)
+    prog_qite = Program(N)
+    prog_qite.make_QITE_prog(ising_ham0, beta, dbeta, domain, np.asarray(psi0), 1.0)
+    prog.append_program(prog_qite)
+    #make and run qmetts program
+    prog_qmetts = prog
+    #make random measurement operator
+    if (i%2 == 0):
+        prog_qmetts.append_program(prog_xBasis)
+    results = run_ibm(simulator, prog_qmetts,1)
+    #update measured metts state for next trajectory
+    measured_metts_state = results[0][0]
+    #make and run JE program
+    prog_JE = prog
     #loop over time-steps in trajectory i    
     for step in range(num_steps):
         #make Hamilton Evolution program for given time-step of given trajectory
         prog_hamEvol = Program(N)
         prog_hamEvol.make_hamEvol_prog(step, dtau, dt, lamba_protocol, param_free_ham)
-        #build main program combing IPS preparation, QMETTS evolution, and Hamiltonian evolution
-        prog_main= Program(N)
-        prog_main.append_program(prog_ips)
-        prog_main.append_program(prog_qmetts)
-        prog_main.append_program(prog_hamEvol)
-        prog_main.append_program(prog_xBasis)
-        programs.append(prog_main)
-        
+        #complete JE program: combing IPS preparation, QITE, and Hamiltonian evolution
+        prog_JE.append_program(prog_hamEvol)
+        prog_JE.append_program(prog_xBasis)
+        results = run_ibm(simulator, prog_JE, 500)
+        #!!!work_t += get_work(results)!!!
+    #!!!work_i += work_t!!!
+    #!!!work.append(work_i)!!!
 
-
+#avg_work = get_average work(work)
+#FE = get_free energy(avg_work)
