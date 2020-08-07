@@ -1,5 +1,7 @@
 import itertools
 import numpy as np
+import arqtic.program as prog
+import scipy
 
 #define Pauli matrics
 X = np.array([[0.0,1.0],[1.0,0.0]])
@@ -53,6 +55,14 @@ def make_Pauli_basis(domain_size):
         pauli_basis_ops.append(op)
     return pauli_basis_ops
 
+
+def pauli_basis_names(domain_size):
+    pauli_basis_names = []
+    for s in itertools.product(['I', 'X', 'Y', 'Z'], repeat=domain_size):
+        pauli_basis_names.append(s)
+    return pauli_basis_names
+
+
 def get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
     H = []
     for i in range(nspins-1):
@@ -66,8 +76,7 @@ def get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
         H.append(hterm)
     if(pbc):
         hterm = []
-        hterm.append([])
-        hterm[-1].append([0,nspins-1])
+        hterm.append([0,nspins-1])
         hm_array = [0]*16
         hm_array[15] = -Jz 
         hterm[-1].append(hm_array)
@@ -91,13 +100,13 @@ def compute_norm(expectation_values, dbeta, h):
     return np.sqrt(norm)    
 
 
-def compute_Amatrix(expectation_values):
+def compute_Smatrix(expectation_values):
     dim = len(expectation_values)
-    A=np.zeros((dim,dim))
+    S=np.zeros((dim,dim))
     for i in range(dim):
         for j in range(dim):
-            A[i,j] = 2*np.real(PauliMultCoeffTable2q[i,j]*expectation_values[int(PauliMultTable2q[i,j])])
-    return A
+            S[i,j] = 2*np.real(PauliMultCoeffTable2q[i,j]*expectation_values[int(PauliMultTable2q[i,j])])
+    return S
 
 
 def compute_bvec(expectation_values, dbeta, h, norm):
@@ -111,17 +120,69 @@ def compute_bvec(expectation_values, dbeta, h, norm):
     return b
 
 
-psi = [1,0,0,0]
-pauli_basis = make_Pauli_basis(2)
-exp_values = get_exepctation_values_th(psi, pauli_basis)
-H = get_2QPauliBasis_hamTFIM(1.0, 2.0, 4, pbc=False) 
-dbeta = 0.5
-for hterm in H:
-    h = np.asarray(hterm[1])
-    print(h)
-    norm = compute_norm(exp_values, 0.5,h)
-    print(norm)
-    print(compute_Amatrix(exp_values))
-    print(compute_bvec(exp_values, dbeta, h, norm))
+def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
+    psi = psi0
+    for i in range(len(A_ops)):
+        active_qubits = A_ops[i][0]
+        op = np.zeros((2**domain,2**domain), dtype=complex)
+        for j in range(len(pauli_basis)):
+            op += A_ops[i][1][j]*pauli_basis[j]
+        #exponentiate op 
+        exp_op = scipy.linalg.expm(1j*op)
+        #exp_op just acts on active qubits so convert to op that acts on whole system
+        exp_op_full = [1]
+        exp_op_not_applied = True
+        for k in range(nspins):
+            if (k in active_qubits):
+                if(exp_op_not_applied): 
+                    exp_op_full = np.kron(exp_op_full, exp_op)
+                    exp_op_not_applied = False
+            else:
+                exp_op_full = np.kron(exp_op_full,np.eye(2))
+        psi = np.dot(exp_op_full, psi)
+    return psi
+
+
+def get_state_from_string(string):
+    psi = [1]
+    for q in range(len(string)):
+        if (string[q] == 0):
+            psi = np.kron(psi,np.array([1,0]))
+        else:
+            psi = np.kron(psi,np.array([0,1]))
+    return psi
+
+
+def Aop_to_Terms(A, domain):
+    nqubits = len(A[0])
+    nops = len(A[1])
+    names = pauli_basis_names(domain)
+    terms = []
+    for i in range(nops):
+        if (np.abs(A[1][i]) > 1e-8):
+            coeff = A[1][i]
+            paulis = []
+            for j in range(domain):
+              if (names[i][j] != "I"):
+                  paulis.append(prog.Pauli(names[i][j],A[0][j]))
+            term = prog.Term(paulis, coeff)
+            terms.append(term)
+    return terms
+
+
+#psi0 = [1,1]
+#psi = get_state_from_string(psi0)
+#pauli_basis = make_Pauli_basis(2)
+#names = pauli_basis_names(2)
+#exp_values = get_exepctation_values_th(psi, pauli_basis)
+#H = get_2QPauliBasis_hamTFIM(1.0, 2.0, 4, pbc=False) 
+#dbeta = 0.5
+#for hterm in H:
+#    h = np.asarray(hterm[1])
+#    print(h)
+#    norm = compute_norm(exp_values, 0.5,h)
+#    print(norm)
+#    print(compute_Smatrix(exp_values))
+#    print(compute_bvec(exp_values, dbeta, h, norm))
 
 

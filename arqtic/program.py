@@ -1,6 +1,9 @@
 import numpy as np
+import arqtic.QITE as qite
 import random
 from arqtic.hamiltonians import Ising_Hamiltonian
+import qiskit
+from pyquil.paulis import PauliTerm, exponential_map
 
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])
@@ -137,11 +140,83 @@ class Program:
                     self.gates.append(Gate("RZ", [q], [theta_x])) 
                     self.gates.append(Gate("H", [q])) 
                     #apply coupling term
-                for q in range(self.nqubits):
+                for q in range(self.nqubits-1):
                     self.gates.append(Gate("CNOT", [q,q+1]))
                     self.gates.append(Gate("RZ", [q], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
         
+
+    def make_QITE_prog(self, ising_ham, beta, dbeta, domain, psi0, regularizer):
+        psi = psi0
+        nbeta = int(beta/dbeta)
+        nspins = ising_ham.nspins
+        Jz = ising_ham.exchange_coeff
+        mu_x = ising_ham.ext_mag_vec[0]
+        #get Pauli basis
+        pauli_basis = qite.make_Pauli_basis(domain)
+        #get hamiltonian in Pauli basis
+        H = qite.get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False)
+        #print("H is: ", H)
+        #creat array of operators to be exponentiated for QITE
+        A_ops = []
+        #loop over nbeta steps 
+        for ib in range(nbeta):
+            for hterm in H:
+                #get the list of qubits this term acts on
+                qubits = hterm[0]
+                A_ops.append([])
+                A_ops[-1].append(qubits)
+                #get the array of coeffs for Pauli basis ops that act on these qubits
+                h = np.asarray(hterm[1])
+                #get expectation values of Pauli basis operators for state psi
+                exp_values = qite.get_exepctation_values_th(psi, pauli_basis)
+                #print("exp_values is: ", exp_values)
+                #compute S matrix
+                S_mat = qite.compute_Smatrix(exp_values)
+                #compute norm of sum of Pauli basis ops on psi
+                norm = qite.compute_norm(exp_values, dbeta, h)
+                #print("norm is: ", norm)
+                #print("h is: ", h)
+                #compute b-vector 
+                b_vec = qite.compute_bvec(exp_values, dbeta, h, norm)
+                #solve linear equation for x
+                #dalpha = np.eye(len(pauli_basis))*regularizer
+                x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
+                #print("Smat is: ", S_mat)
+                #print("bvec is: ", b_vec)
+                #print("x is: ", x)
+                op_coeffs = []
+                for i in range(len(x)):
+                    if (np.abs(x[i]) > 1e-8):
+                        op_coeffs.append(x[i])
+                    else: op_coeffs.append(0.0)
+                A_ops[-1].append(np.array(op_coeffs))
+                psi = qite.get_new_psi(psi, A_ops, pauli_basis, nspins, domain)
+        print("Aops is: ", A_ops)
+        #convert A_ops into program
+        self.nqubits = nspins
+        names = qite.pauli_basis_names(domain)
+        #get entries in A_ops in terms of Pauli Terms
+        Terms = []
+        for i in range(len(A_ops)):
+             pts = qite.Aop_to_Terms(A_ops[i], domain)
+             Terms.append(pts)
+        #initial hack to exponentiate operator:  convert A_ops to Pyquil PauliTerms
+        #then use pyquil's exponential map function
+        #convert Terms to Pyquil PauliTerms
+        pyquilPTs = [] 
+        for term_list in Terms:
+            for term in term_list:
+                ppt = 1
+                for pauli in term.paulis:
+                    ppt *= PauliTerm(pauli.name, pauli.qubit, term.coeff)
+        #exponentiate all the pauli terms and add to qite program
+        qite_prog = Program(nspins)
+            
+        #for term in pauli_terms:
+
+        return qite_prog
+
 
     def get_Qcompile_input(self, filename='QCompile_input.txt'):
         matU = self.get_U()
@@ -155,6 +230,7 @@ class Program:
                 f.write(" ")
                 f.write(str(np.imag(matU[i][j])))
                 f.write("\n")
+
 
 def random_bitstring(nbits):
     bitstring = []
