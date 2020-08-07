@@ -363,7 +363,7 @@ class Heisenberg:
                 XX_instr_set.append(Gate('H',[q]))
                 XX_instr_set.append(Gate('H',[q+1]))
                 XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('RZ', [q], angles=[psiX]))
+                XX_instr_set.append(Gate('RZ', [q+1], angles=[psiX]))
                 XX_instr_set.append(Gate('CNOT',[q, q+1]))
                 XX_instr_set.append(Gate('H',[q]))
                 XX_instr_set.append(Gate('H',[q+1]))
@@ -371,19 +371,23 @@ class Heisenberg:
                 YY_instr_set.append(Gate('RX',[q],angles=[-np.pi/2]))
                 YY_instr_set.append(Gate('RX',[q+1],angles=[-np.pi/2]))
                 YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RZ', [q], angles=[psiY]))
+                YY_instr_set.append(Gate('RZ', [q+1], angles=[psiY]))
                 YY_instr_set.append(Gate('CNOT',[q, q+1]))
                 YY_instr_set.append(Gate('RX',[q],angles=[np.pi/2]))
                 YY_instr_set.append(Gate('RX',[q+1],angles=[np.pi/2]))
 
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
-                ZZ_instr_set.append(Gate('RZ', [q], angles=[psiZ]))
+                ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
 
-            P.add_instr(ext_instr_set)
-            P.add_instr(XX_instr_set)
-            P.add_instr(YY_instr_set)
-            P.add_instr(ZZ_instr_set)
+            if self.h_ext != 0:
+                P.add_instr(ext_instr_set)
+            if self.JX !=0:
+                P.add_instr(XX_instr_set)
+            if self.JY !=0:
+                P.add_instr(YY_instr_set)
+            if self.JZ !=0:
+                P.add_instr(ZZ_instr_set)
         return P
 
     def generate_local_circuits(self):
@@ -452,7 +456,6 @@ class Heisenberg:
             self.ibm_circuits_list.append(propcirc)
         print("IBM quantum circuit objects created")
         self.logfile.write("IBM quantum circuit objects created")
-        print(self.ibm_circuits_list[20].qasm())
 
         if "y" in self.compile:
             if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
@@ -476,10 +479,10 @@ class Heisenberg:
                 print("Circuits compiled successfully")
                 self.logfile.write("Circuits compiled successfully")
             elif self.default_compiler in "native":
-                temp=[]
                 print("Transpiling circuits...")
                 self.logfile.write("Transpiling circuits...")
-                self.ibm_circuits_list=qk.transpile(self.ibm_circuits_list,backend=backend,optimization_level=3)
+                temp=qk.compiler.transpile(self.ibm_circuits_list,backend=device,optimization_level=3)
+                self.ibm_circuits_list=temp
                 print("Circuits transpiled successfully")
                 self.logfile.write("Circuits transpiled successfully")
 
@@ -512,7 +515,7 @@ class Heisenberg:
                 self.logfile.write("TFIM detected, enabling smart compiler")
                 temp=[]
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend))
+                    temp.append(smart_compile(circuit,self.backend,self.shots))
                 self.rigetti_circuits_list=temp
 
             elif self.default_compiler in "smart":
@@ -520,7 +523,7 @@ class Heisenberg:
                 print("Compiling circuits...")
                 self.logfile.write("Compiling circuits...")
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend))
+                    temp.append(smart_compile(circuit,self.backend,self.shots))
                 self.rigetti_circuits_list=temp
                 print("Circuits compiled successfully")
                 self.logfile.write("Circuits compiled successfully")
@@ -563,7 +566,9 @@ class Heisenberg:
 
     def generate_circuits(self):
         # self.imports()
-        self.generate_local_circuits()
+        if len(self.circuits_list)==0:
+            self.generate_local_circuits()
+
         if self.backend in "ibm":
             self.generate_ibm()
         if self.backend in "rigetti":
@@ -571,7 +576,7 @@ class Heisenberg:
         if self.backend in "cirq":
             self.generate_cirq()
 
-    def connect_account(self,api_key=None, overwrite=False):
+    def connect_IBM(self,api_key=None, overwrite=False):
         if api_key != None:
             if overwrite==False:
                 qk.IBMQ.save_account(api_key) ## only run once!
@@ -591,12 +596,17 @@ class Heisenberg:
         return self.result_matrix
 
     def return_circuits(self):
-        self.generate_circuits()
         if self.backend in "ibm":
+            if len(self.ibm_circuits_list)==0:
+                self.generate_circuits()
             return self.ibm_circuits_list
         elif self.backend in "rigetti":
+            if len(self.rigetti_circuits_list)==0:
+                self.generate_circuits()
             return self.rigetti_circuits_list
         elif self.backend in "cirq":
+            if len(self.cirq_circuits_list)==0:
+                self.generate_circuits()
             return self.cirq_circuits_list
 
     def average_magnetization(self,result: dict, shots: int, qub: int):
@@ -698,7 +708,7 @@ class Heisenberg:
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
                         temp.append(self.average_magnetization(result_dict, self.shots,j))
-                        if i % self.steps == 0:
+                        if i % (self.steps+1) == 0:
                             avg_mag_sim.append(temp)
                             temp = []
                         i += 1
@@ -706,7 +716,7 @@ class Heisenberg:
                     # time_vec=time_vec*JX/H_BAR
                     if "y" in self.plot_flag:
                         plt.figure()
-                        plt.plot(range(self.steps), avg_mag_sim[0])
+                        plt.plot(range(self.steps+1), avg_mag_sim[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
                         plt.savefig("Data/Simulator_result_qubit{}.png".format(j+1))
@@ -729,7 +739,7 @@ class Heisenberg:
                     for c in self.ibm_circuits_list:
                             result_dict = results.get_counts(c)
                             temp.append(self.average_magnetization(result_dict, self.shots,j))
-                            if i % self.steps == 0:
+                            if i % (self.steps+1) == 0:
                                     avg_mag_qc.append(temp)
                                     temp = []
                             i += 1
@@ -737,7 +747,7 @@ class Heisenberg:
                     # QC
                     if "y" in self.plot_flag:
                         plt.figure()
-                        plt.plot(range(self.steps), avg_mag_qc[0])
+                        plt.plot(range(self.steps+1), avg_mag_qc[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
                         plt.savefig("Data/QC_result_qubit{}.png".format(j+1))
@@ -748,35 +758,46 @@ class Heisenberg:
                 print("Done")
                 self.logfile.write("Done\n")
         elif "rigetti" in self.backend:
-
-            qc=get_qc(self.device)
-            outer=[]
+            print("Running Pyquil programs...")
+            self.logfile.write("Running Pyquil programs...\n")
+            qc=get_qc(self.device_choice)
+            results_list=[]
             first_ind=0
             #each circuit represents one timestep
-            for circuit in rigetti_circuits_list:
+            for circuit in self.rigetti_circuits_list:
+                # print("Ay I got a circuit here")
                 temp=qc.run(circuit)
                 results_list.append(temp)
+
             for i in range(self.num_qubits):
-                qubit_specific_row=np.zeros(len(results))
-                for j in range(len(rigetti_circuits_list)):
-                    result=results_list[j]
+                print("Post-processing qubit {} data...".format(i+1))
+                self.logfile.write("Post-processing qubit {} data...\n".format(i+1))
+                qubit_specific_row=np.zeros(len(results_list))
+                for j in range(len(self.rigetti_circuits_list)):
+                    results=results_list[j]
+
                     summation=0
                     for array in results:
-                        summation+=1-2*array[i]
+                        summation+=(1-2*array[i])
+
                     summation=summation/len(results) #average over the number of shots
+
                     qubit_specific_row[j]=summation
                 if first_ind==0:
                     self.result_matrix=qubit_specific_row
+                    first_ind+=1
                 else:
-                    self.result_matrix=np.stack(self.result_matrix,qubit_specific_row)
+                    self.result_matrix=np.vstack((self.result_matrix,qubit_specific_row))
                 if "y" in self.plot_flag:
                     plt.figure()
-                    plt.plot(range(self.steps), qubit_specific_row)
+                    xaxis=np.linspace(0,self.steps,num=self.steps+1)
+                    plt.plot(qubit_specific_row)
                     plt.xlabel("Simulation Timestep")
                     plt.ylabel("Average Magnetization")
-                    plt.savefig("Data/Result_qubit{}.png".format(j+1))
+                    plt.savefig("Data/Result_qubit{}.png".format(i+1))
                     plt.close()
-
+            print("Done")
+            self.logfile.write("Done\n")
 
 
 
@@ -788,7 +809,7 @@ class Heisenberg:
 
 ############    Pure Smart Compiler Functionality   #######################################################################################################################################
 #If the user just wants to pass an existing circuit object through the smart compilers
-def smart_compile(circ_obj,circ_type):
+def smart_compile(circ_obj,circ_type,shots=1):
     if circ_type in "ibm":
         nqubits=circ_obj.num_qubits    
         #Read the gate in right vector form
@@ -834,8 +855,8 @@ def smart_compile(circ_obj,circ_type):
                 AC1[i] = 0
                 AC2[i] =0
             i = i+1
-            
-            
+
+
             
         #Omit last and second-to-last CNOT for each qubit
         for qub in range(0,nqubits+1):
@@ -860,7 +881,8 @@ def smart_compile(circ_obj,circ_type):
                     G[i]  = "NULL"
                     break
                 i=i-1            
-                
+        
+
                 
         #Use CNOT (0,1) ->  H(0) H(1) CNOT(1,0) H(0) H(1)
         i=0
@@ -1222,7 +1244,7 @@ def smart_compile(circ_obj,circ_type):
                   AC1 = np.insert(AC1,i+5,AC2[i]); AC2 = np.insert(AC2,i+5,0);
                   G.insert(i,"RZ"); TH = np.insert(TH,i,1.57079632679); 
                   AC1 = np.insert(AC1,i,AC2[i]); AC2 = np.insert(AC2,i,0);
-                  print("loop activated")
+                  # print("loop activated")
             i = i+1
         
         
@@ -1371,18 +1393,19 @@ def smart_compile(circ_obj,circ_type):
             i = i + 1
 
         
-        p = Program(RESET()) #compressed program
+        p = pyquil.Program(RESET()) #compressed program
         ro = p.declare('ro', memory_type='BIT', memory_size=nqubits)
 
         for i in range(len(G)):
             if (G[i] == "RX"):
-                p.inst(RX(TH[i], int(AC1[i])))
+                p.inst(pyquil.gates.RX(TH[i], int(AC1[i])))
             if (G[i] == "RZ"):
-                p.inst(RZ(TH[i], int(AC1[i])))
+                p.inst(pyquil.gates.RZ(TH[i], int(AC1[i])))
             if (G[i] == "CZ"):
-                p.inst(CZ(int(AC1[i]), int(AC2[i])))
+                p.inst(pyquil.gates.CZ(int(AC1[i]), int(AC2[i])))
         for i in range(0,nqubits):
-            p.inst(MEASURE(i, ro[i]))
+            p.inst(pyquil.gates.MEASURE(i, ro[i]))
+        p.wrap_in_numshots_loop(shots)
         return p
 
 

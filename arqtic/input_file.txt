@@ -42,7 +42,7 @@ n
 
 
 *num_qubits
-2
+3
 
 
 *QCQS
@@ -50,10 +50,10 @@ QS
 
 
 *device
-8q-qvm
+ibmq_16_melbourne
 
 *noise_choice
-y
+n
 
 *ext_dir
 X
@@ -62,4 +62,4 @@ X
 y
 
 *backend
-rigetti
+ibm
