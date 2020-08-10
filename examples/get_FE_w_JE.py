@@ -14,6 +14,23 @@ import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 
 
+#get amouot of work from QC results
+def get_work(results, shots):
+    work = 0
+    for result in results:
+        state_vec = result[0]
+        count = result[1]
+        work_comp = 0
+        for i in range(len(state_vec)):
+            if (state_vec[i] == 0):
+                work_comp += 1
+            else:
+                work_comp += -1
+        work_comp *= count
+        work += work_comp
+    work = work/shots
+    return work
+
 #define system variables
 N = 2 #number of qubits
 Jz = 0.1 #ising interaction strength
@@ -23,14 +40,16 @@ ising_ham0 = Ising_Hamiltonian(2, Jz, [0.01, 0, 0]) #Hamiltonian at beginning of
 
 #define simulation variables
 tau = 10 #total trajectory time to evolve lambda from 0 to 1
-dtau = 2.0 #time-step for trajectory
+dtau = 1.0 #time-step for trajectory
 num_steps = int(tau/dtau)
-T = 2 #total number of trajectories
+T = 100 #total number of trajectories
 dt =  dtau #timestep for Trotter approximation: setting equal to dtau means one trotter-step per time-step in evolution
 lamba_protocol = np.linspace((dtau/tau),1.0,num_steps)
-    
+dldt = 0.1 # d(lambda)/d(tau)
+shots = 1000
+
 #define QITE variables
-beta = 1.0 #inverse temperature of systems
+beta = 2.0 #inverse temperature of systems
 dbeta = 0.2 #step-size in beta for QITE
 domain = 2 #domain of opertators for QITE
 
@@ -75,8 +94,11 @@ for i in range(T):
     psi0 = qite.get_state_from_string(measured_metts_state)
     prog = Program(N)
     prog.make_ps_prog(measured_metts_state)
+    #print(measured_metts_state)
+    #prog.print_list()
     prog_qite = Program(N)
-    prog_qite.make_QITE_prog(ising_ham0, beta, dbeta, domain, np.asarray(psi0), 1.0)
+    #note QITE algorithm should evolve state by beta/2 for temperature beta
+    prog_qite.make_QITE_prog(ising_ham0, beta/2.0, dbeta, domain, np.asarray(psi0), 1.0)
     prog.append_program(prog_qite)
     #make and run qmetts program
     prog_qmetts = prog
@@ -88,18 +110,23 @@ for i in range(T):
     measured_metts_state = results[0][0]
     #make and run JE program
     prog_JE = prog
-    #loop over time-steps in trajectory i    
+    #loop over time-steps in trajectory i
+    work_i = 0    
     for step in range(num_steps):
+        #print(step)
         #make Hamilton Evolution program for given time-step of given trajectory
         prog_hamEvol = Program(N)
         prog_hamEvol.make_hamEvol_prog(step, dtau, dt, lamba_protocol, param_free_ham)
         #complete JE program: combing IPS preparation, QITE, and Hamiltonian evolution
         prog_JE.append_program(prog_hamEvol)
         prog_JE.append_program(prog_xBasis)
-        results = run_ibm(simulator, prog_JE, 500)
-        #!!!work_t += get_work(results)!!!
-    #!!!work_i += work_t!!!
-    #!!!work.append(work_i)!!!
+        results = run_ibm(simulator, prog_JE, shots)
+        #print(results)
+        #print(get_work(results, shots))
+        work_i += dldt*dtau*get_work(results, shots)
+    work.append(work_i)
 
+
+print(work)
 #avg_work = get_average work(work)
 #FE = get_free energy(avg_work)
