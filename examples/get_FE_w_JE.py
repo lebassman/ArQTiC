@@ -124,6 +124,7 @@ for i in range(T):
         #print(results)
         #print(get_work(results, shots))
         work_i += dldt*dtau*get_work(results, shots)
+        work_i *= mu_x
     work.append(work_i)
 
 
