@@ -5,6 +5,7 @@ from arqtic.hamiltonians import Ising_Hamiltonian
 import qiskit
 from pyquil.paulis import PauliTerm, exponential_map
 
+
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])
 Y = np.array([[0,-1.0j],[1.0j,0.0]])
@@ -173,6 +174,7 @@ class Program:
                 h = np.asarray(hterm[1])
                 #get coeffs for qite circuit
                 x = qite.qite_step(psi, pauli_basis, dbeta, h)
+                #print(x)
                 op_coeffs = []
                 for i in range(len(x)):
                     if (np.abs(x[i]) > 1e-8):
@@ -180,20 +182,20 @@ class Program:
                     else: op_coeffs.append(0.0)
                 A_ops[-1].append(np.array(op_coeffs))
                 psi = qite.get_new_psi(psi, A_ops, pauli_basis, nspins, domain)
-        #print("Aops is: ", A_ops)
+        print("Aops is: ", A_ops)
         #convert A_ops into program
         self.nqubits = nspins
         names = qite.pauli_basis_names(domain)
         #get entries in A_ops in terms of Pauli Terms
-        Terms = []
+        pauliTerms = []
         for i in range(len(A_ops)):
-             pts = qite.Aop_to_Terms(A_ops[i], domain)
-             Terms.append(pts)
+            pts = qite.Aop_to_Terms(A_ops[i], domain)
+            pauliTerms.append(pts)
         #initial hack to exponentiate operator:  convert A_ops to Pyquil PauliTerms
         #then use pyquil's exponential map function
         #convert Terms to Pyquil PauliTerms
         pyquilPTs = [] 
-        for term_list in Terms:
+        for term_list in pauliTerms:
             for term in term_list:
                 ppt = 1
                 for pauli in term.paulis:
@@ -201,7 +203,6 @@ class Program:
                     pyquilPTs.append(ppt)
         #print(pyquilPTs)
         #exponentiate all the pyquil PauliTerms and add to qite program
-        qite_prog = Program(nspins)
         for ppt in pyquilPTs:
             exp_gate = exponential_map(ppt)(1.0)
             #print(ppt)
@@ -210,16 +211,14 @@ class Program:
             for inst in exp_gate.instructions:
                 #print(inst.name)
                 if (inst.name == "RZ"):
-                    #print(inst.params[0])
-                    #print(inst.qubits[0])
-                    qite_prog.add_gate(Gate("RZ", inst.qubits[0], inst.params[0]))	
+                    self.add_gate(Gate("RZ", [int(str(inst.qubits[0]))], [inst.params[0]]))
                 if (inst.name == "RX"):
-                    qite_prog.add_gate(Gate("RX", inst.qubits[0], inst.params[0])) 
+                    self.add_gate(Gate("RX", [int(str(inst.qubits[0]))], [inst.params[0]])) 
                 if (inst.name == "H"):
-                    qite_prog.add_gate(Gate("H", inst.qubits[0])) 
+                    self.add_gate(Gate("H", [int(str(inst.qubits[0]))])) 
                 if (inst.name == "CNOT"):
-                    qite_prog.add_gate(Gate("CNOT", inst.qubits,))                
-        return qite_prog
+                    self.add_gate(Gate("CNOT", [int(str(inst.qubits[0])), int(str(inst.qubits[1]))]))  
+
 
 
     def get_Qcompile_input(self, filename='QCompile_input.txt'):

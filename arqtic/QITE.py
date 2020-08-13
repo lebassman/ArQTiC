@@ -273,8 +273,8 @@ def Aop_to_Terms(A, domain):
             coeff = A[1][i]
             paulis = []
             for j in range(domain):
-              if (names[i][j] != "I"):
-                  paulis.append(prog.Pauli(names[i][j],A[0][j]))
+                if (names[i][j] != "I"):
+                    paulis.append(prog.Pauli(names[i][j],A[0][j]))
             term = prog.Term(paulis, coeff)
             if (len(paulis) > 0):
                 terms.append(term)

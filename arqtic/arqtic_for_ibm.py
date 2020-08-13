@@ -10,6 +10,9 @@ def run_ibm(backend, prog, shots):
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
     for gate in prog.gates:
+        #print(gate.name)
+        #print(gate.qubits)
+        #print(gate.angles)
         if (gate.name == "X"):
             ibm_circuit.x(gate.qubits)
         if (gate.name == "Y"):
@@ -20,6 +23,8 @@ def run_ibm(backend, prog, shots):
             ibm_circuit.h(gate.qubits)
         if (gate.name == "RZ"):
             ibm_circuit.rz(gate.angles[0], gate.qubits)
+        if (gate.name == "RX"):
+            ibm_circuit.rx(gate.angles[0], gate.qubits)
         if (gate.name == "CNOT"):
             ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
     #add measurement operators
