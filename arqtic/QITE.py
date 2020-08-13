@@ -138,6 +138,14 @@ def compute_norm(expectation_values, dbeta, h):
     return np.sqrt(norm)    
 
 
+def compute_norm1q(expectation_values, dbeta, h):
+    norm = 0
+    Pm_coeffs = -dbeta*h
+    Pm_coeffs[0] += 1
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])]
+    return np.sqrt(norm)
+
 def compute_norm3q(expectation_values, dbeta, h):
     norm = 0
     Pm_coeffs = -dbeta*h
@@ -155,6 +163,13 @@ def compute_Smatrix(expectation_values):
     return S
 
 
+def compute_Smatrix1q(expectation_values, h):
+    dim = len(expectation_values)
+    S=np.zeros((dim,dim))
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        S[i,j] = 2*np.real(PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])])
+    return S
+
 def compute_Smatrix3q(expectation_values, h):
     dim = len(expectation_values)
     S=np.zeros((dim,dim))
@@ -170,6 +185,16 @@ def compute_bvec(expectation_values, dbeta, h, norm):
     for i in range(dim):
         for j in range(dim):
             b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable2q[j,i]*expectation_values[int(PauliMultTable2q[i,j])])
+    return b
+
+
+def compute_bvec1q(expectation_values, dbeta, h, norm):
+    dim = len(expectation_values)
+    b = np.zeros(dim)
+    Pm = -dbeta*h
+    Pm[0] += 1
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable1q[j,i]*expectation_values[int(PauliMultTable1q[i,j])])
     return b
 
 def compute_bvec3q(expectation_values, dbeta, h, norm):
@@ -206,6 +231,28 @@ def qite_step(psi, pauli_basis, dbeta, h):
     return x
 
 
+def qite_step1q(psi, pauli_basis, dbeta, h):
+    #get expectation values of Pauli basis operators for state psi
+    exp_values = get_exepctation_values_th(psi, pauli_basis)
+    print("exp_values is: ", exp_values)
+    #compute S matrix
+    S_mat = compute_Smatrix1q(exp_values,h)
+    #compute norm of sum of Pauli basis ops on psi
+    norm = compute_norm1q(exp_values, dbeta, h)
+    print("norm is: ", norm)
+    #compute b-vector 
+    b_vec = compute_bvec1q(exp_values, dbeta, h, norm)
+    #solve linear equation for x
+    #dalpha = np.eye(len(pauli_basis))*regularizer
+    #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
+    clf = Lasso(alpha=0.001)
+    clf.fit(S_mat, -b_vec)
+    x = clf.coef_
+    print("Smat is: ", S_mat)
+    print("bvec is: ", b_vec)
+    print("x is: ", x)
+    return x
+
 def qite_step3q(psi, pauli_basis, dbeta, h):
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis)
@@ -234,11 +281,15 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
     psi = psi0
     for i in range(len(A_ops)):
         active_qubits = A_ops[i][0]
+        #print("active qubits is: ", active_qubits)
         op = np.zeros((2**domain,2**domain), dtype=complex)
+        #print("op is: ", op)
         for j in range(len(pauli_basis)):
             op += A_ops[i][1][j]*pauli_basis[j]
         #exponentiate op 
+        #print("op is: ", op)
         exp_op = scipy.linalg.expm(1j*op)
+        #print("exp_op is: ", exp_op)
         #exp_op just acts on active qubits so convert to op that acts on whole system
         exp_op_full = [1]
         exp_op_not_applied = True
@@ -249,6 +300,7 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
                     exp_op_not_applied = False
             else:
                 exp_op_full = np.kron(exp_op_full,np.eye(2))
+        #print("exp_op_full is: ", exp_op_full)
         psi = np.dot(exp_op_full, psi)
     return psi
 
