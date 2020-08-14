@@ -159,20 +159,14 @@ class Program:
         #get Pauli basis
         pauli_basis = qite.make_Pauli_basis(domain)
         #get hamiltonian in Pauli basis
-        H = []
-        H.append([])
-        H[-1].append([0])
-        H[-1].append([0, 1.0/np.sqrt(2), 0, 0])
-        #H.append([])
-        #H[-1].append([0])
-        #H[-1].append([0, 0, 0, 1.0/np.sqrt(2)])
-        #H = qite.get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False)
-        print("H is: ", H)
+        ###CAUTION: HARDCODED FUNCTION###
+        H = qite.get_1QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False)
+        #print("H is: ", H)
         #creat array of operators to be exponentiated for QITE
         A_ops = []
         #loop over nbeta steps 
         for ib in range(nbeta):
-            print(ib)
+            #print(ib)
             for hterm in H:
                 #get the list of qubits this term acts on
                 qubits = hterm[0]
@@ -181,6 +175,7 @@ class Program:
                 #get the array of coeffs for Pauli basis ops that act on these qubits
                 h = np.asarray(hterm[1])
                 #get coeffs for qite circuit
+                ###CAUTION: HARDCODED FUNCTION###
                 x = qite.qite_step1q(psi, pauli_basis, dbeta, h)
                 #print(x)
                 op_coeffs = []
@@ -190,8 +185,8 @@ class Program:
                     else: op_coeffs.append(0.0)
                 A_ops[-1].append(np.array(op_coeffs))
                 psi = qite.get_new_psi(psi0, A_ops, pauli_basis, nspins, domain)
-                print("psi is: ", psi)
-        print("Aops is: ", A_ops)
+                #print("psi is: ", psi)
+        #print("Aops is: ", A_ops)
         #convert A_ops into program
         self.nqubits = nspins
         names = qite.pauli_basis_names(domain)

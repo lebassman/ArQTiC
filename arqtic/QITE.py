@@ -78,6 +78,18 @@ def pauli_basis_names(domain_size):
     return pauli_basis_names
 
 
+def get_1QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
+    #!!! note this only works for 1 qubit and is not really a TFIM
+    H = []
+    hterm = []
+    hterm.append([0]) #define active qubits for term
+    hm_array = [0]*4
+    hm_array[1] = -mu_x
+    hterm.append(hm_array)
+    H.append(hterm)
+    return H
+
+
 def get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
     H = []
     for i in range(nspins-1):
@@ -223,7 +235,7 @@ def qite_step(psi, pauli_basis, dbeta, h):
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
     clf = Lasso(alpha=0.001)
-    clf.fit(S_mat, b_vec)
+    clf.fit(S_mat, -b_vec)
     x = clf.coef_ 
     #print("Smat is: ", S_mat)
     #print("bvec is: ", b_vec)
@@ -234,12 +246,12 @@ def qite_step(psi, pauli_basis, dbeta, h):
 def qite_step1q(psi, pauli_basis, dbeta, h):
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis)
-    print("exp_values is: ", exp_values)
+    #print("exp_values is: ", exp_values)
     #compute S matrix
     S_mat = compute_Smatrix1q(exp_values,h)
     #compute norm of sum of Pauli basis ops on psi
     norm = compute_norm1q(exp_values, dbeta, h)
-    print("norm is: ", norm)
+    #print("norm is: ", norm)
     #compute b-vector 
     b_vec = compute_bvec1q(exp_values, dbeta, h, norm)
     #solve linear equation for x
@@ -248,9 +260,9 @@ def qite_step1q(psi, pauli_basis, dbeta, h):
     clf = Lasso(alpha=0.001)
     clf.fit(S_mat, -b_vec)
     x = clf.coef_
-    print("Smat is: ", S_mat)
-    print("bvec is: ", b_vec)
-    print("x is: ", x)
+    #print("Smat is: ", S_mat)
+    #print("bvec is: ", b_vec)
+    #print("x is: ", x)
     return x
 
 def qite_step3q(psi, pauli_basis, dbeta, h):
@@ -269,7 +281,7 @@ def qite_step3q(psi, pauli_basis, dbeta, h):
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
     clf = Lasso(alpha=0.001)
-    clf.fit(S_mat, b_vec)
+    clf.fit(S_mat, -b_vec)
     x = clf.coef_
     print("Smat is: ", S_mat)
     print("bvec is: ", b_vec)
