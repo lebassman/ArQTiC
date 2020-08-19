@@ -346,13 +346,9 @@ class Heisenberg:
             ZZ_instr_set=[]
             for q in range(self.num_qubits):
                 if self.ext_dir in "X":
-                    ext_instr_set.append(Gate('H', [q]))
-                    ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
-                    ext_instr_set.append(Gate('H',[q]))
+                    ext_instr_set.append(Gate('RX', [q], angles=[psi_ext]))
                 elif self.ext_dir in "Y":
-                    ext_instr_set.append(Gate('RX', [q], angles=[-np.pi/2]))
-                    ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
-                    ext_instr_set.append(Gate('RX', [q], angles=[np.pi/2]))
+                    ext_instr_set.append(Gate('RY', [q], angles=[psi_ext]))
                 elif self.ext_dir in "Z":
                     ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
             psiX=-2.0*(self.JX)*self.delta_t/self.H_BAR
