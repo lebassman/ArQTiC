@@ -140,7 +140,7 @@ def get_exepctation_values_th(psi, Pauli_basis):
     return exp_values
 
 
-def compute_norm(expectation_values, dbeta, h):
+def compute_norm2q(expectation_values, dbeta, h):
     norm = 0
     Pm_coeffs = -dbeta*h
     Pm_coeffs[0] += 1
@@ -166,7 +166,7 @@ def compute_norm3q(expectation_values, dbeta, h):
         norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])]
     return np.sqrt(norm)
 
-def compute_Smatrix(expectation_values):
+def compute_Smatrix2q(expectation_values):
     dim = len(expectation_values)
     S=np.zeros((dim,dim))
     for i in range(dim):
@@ -189,7 +189,7 @@ def compute_Smatrix3q(expectation_values, h):
         S[i,j] = 2*np.real(PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])])
     return S
 
-def compute_bvec(expectation_values, dbeta, h, norm):
+def compute_bvec2q(expectation_values, dbeta, h, norm):
     dim = len(expectation_values)
     b = np.zeros(dim) 
     Pm = -dbeta*h
@@ -219,18 +219,18 @@ def compute_bvec3q(expectation_values, dbeta, h, norm):
     return b
 
 
-def qite_step(psi, pauli_basis, dbeta, h):
+def qite_step2q(psi, pauli_basis, dbeta, h):
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis)
     #print("exp_values is: ", exp_values)
     #compute S matrix
-    S_mat = compute_Smatrix(exp_values)
+    S_mat = compute_Smatrix2q(exp_values)
     #compute norm of sum of Pauli basis ops on psi
-    norm = compute_norm(exp_values, dbeta, h)
+    norm = compute_norm2q(exp_values, dbeta, h)
     #print("norm is: ", norm)
     #print("h is: ", h)
     #compute b-vector 
-    b_vec = compute_bvec(exp_values, dbeta, h, norm)
+    b_vec = compute_bvec2q(exp_values, dbeta, h, norm)
     #solve linear equation for x
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
