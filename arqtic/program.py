@@ -111,7 +111,7 @@ class Program:
                         mat = np.kron(kron_list[0], kron_list[1])
                     else:
                         mat = np.kron(mat, kron_list[q+1])
-            else: mat = gate_dict[gate.matrix]
+            else: mat = gate_matrix_dict[gate.matrix]
             matU = np.matmul(matU,mat)
         return matU     
 
@@ -159,8 +159,7 @@ class Program:
         #get Pauli basis
         pauli_basis = qite.make_Pauli_basis(domain)
         #get hamiltonian in Pauli basis
-        ###CAUTION: HARDCODED FUNCTION###
-        H = qite.get_1QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False)
+        H = qite.get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False)
         #print("H is: ", H)
         #creat array of operators to be exponentiated for QITE
         A_ops = []
@@ -169,14 +168,13 @@ class Program:
             #print(ib)
             for hterm in H:
                 #get the list of qubits this term acts on
-                qubits = hterm[0]
+                active_qubits = hterm[0]
                 A_ops.append([])
-                A_ops[-1].append(qubits)
+                A_ops[-1].append(active_qubits)
                 #get the array of coeffs for Pauli basis ops that act on these qubits
                 h = np.asarray(hterm[1])
                 #get coeffs for qite circuit
-                ###CAUTION: HARDCODED FUNCTION###
-                x = qite.qite_step1q(psi, pauli_basis, dbeta, h)
+                x = qite.qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain)
                 #print(x)
                 op_coeffs = []
                 for i in range(len(x)):
@@ -223,79 +221,6 @@ class Program:
                 if (inst.name == "CNOT"):
                     self.add_gate(Gate("CNOT", [int(str(inst.qubits[0])), int(str(inst.qubits[1]))]))  
 
-    def make_QITE_prog2q(self, ising_ham, beta, dbeta, domain, psi0, regularizer):
-        psi = psi0
-        nbeta = int(beta/dbeta)
-        nspins = ising_ham.nspins
-        Jz = ising_ham.exchange_coeff
-        mu_x = ising_ham.ext_mag_vec[0]
-        #get Pauli basis
-        pauli_basis = qite.make_Pauli_basis(domain)
-        #get hamiltonian in Pauli basis
-        ###CAUTION: HARDCODED FUNCTION###
-        H = qite.get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False)
-        #print("H is: ", H)
-        #creat array of operators to be exponentiated for QITE
-        A_ops = []
-        #loop over nbeta steps 
-        for ib in range(nbeta):
-            #print(ib)
-            for hterm in H:
-                #get the list of qubits this term acts on
-                qubits = hterm[0]
-                A_ops.append([])
-                A_ops[-1].append(qubits)
-                #get the array of coeffs for Pauli basis ops that act on these qubits
-                h = np.asarray(hterm[1])
-                #get coeffs for qite circuit
-                ###CAUTION: HARDCODED FUNCTION###
-                x = qite.qite_step2q(psi, pauli_basis, dbeta, h)
-                #print(x)
-                op_coeffs = []
-                for i in range(len(x)):
-                    if (np.abs(x[i]) > 1e-8):
-                        op_coeffs.append(x[i])
-                    else: op_coeffs.append(0.0)
-                A_ops[-1].append(np.array(op_coeffs))
-                psi = qite.get_new_psi(psi0, A_ops, pauli_basis, nspins, domain)
-                #print("psi is: ", psi)
-        #print("Aops is: ", A_ops)
-        #convert A_ops into program
-        self.nqubits = nspins
-        names = qite.pauli_basis_names(domain)
-        #get entries in A_ops in terms of Pauli Terms
-        pauliTerms = []
-        for i in range(len(A_ops)):
-            pts = qite.Aop_to_Terms(A_ops[i], domain)
-            pauliTerms.append(pts)
-        #initial hack to exponentiate operator:  convert A_ops to Pyquil PauliTerms
-        #then use pyquil's exponential map function
-        #convert Terms to Pyquil PauliTerms
-        pyquilPTs = [] 
-        for term_list in pauliTerms:
-            for term in term_list:
-                ppt = 1
-                for pauli in term.paulis:
-                    ppt *= PauliTerm(pauli.name, pauli.qubit, term.coeff)
-                    pyquilPTs.append(ppt)
-        #print(pyquilPTs)
-        #exponentiate all the pyquil PauliTerms and add to qite program
-        for ppt in pyquilPTs:
-            exp_gate = exponential_map(ppt)(1.0)
-            #print(ppt)
-            #print(exp_gate)
-            #add exp_gate to program  
-            for inst in exp_gate.instructions:
-                #print(inst.name)
-                if (inst.name == "RZ"):
-                    self.add_gate(Gate("RZ", [int(str(inst.qubits[0]))], [inst.params[0]]))
-                if (inst.name == "RX"):
-                    self.add_gate(Gate("RX", [int(str(inst.qubits[0]))], [inst.params[0]])) 
-                if (inst.name == "H"):
-                    self.add_gate(Gate("H", [int(str(inst.qubits[0]))])) 
-                if (inst.name == "CNOT"):
-                    self.add_gate(Gate("CNOT", [int(str(inst.qubits[0])), int(str(inst.qubits[1]))]))  
-                    
 
     def get_Qcompile_input(self, filename='QCompile_input.txt'):
         matU = self.get_U()

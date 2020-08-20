@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 import arqtic.program as prog
+from arqtic.exceptions import Error
 import scipy
 from sklearn.linear_model import Lasso
 
@@ -78,159 +79,138 @@ def pauli_basis_names(domain_size):
     return pauli_basis_names
 
 
-def get_1QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
-    #!!! note this only works for 1 qubit and is not really a TFIM
+def get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False):
+    #check that domain=1 only when nspins=1
+    if (domain == 1):
+        if (nspins > 1):
+            raise Error('Domain can only be set to 1 with nspins=1')  
+    #check that domain <= nspins
+    if (domain > nspins):
+        raise Error('Domain is larger than the number of spins')
+    #check that domain < 4
+    if (domain > 3):
+        raise Error('At this time, domain is limited to 3')
+    #define active qubit sets based on domain and nspins
+    active_qubit_sets = []
+    nsets = nspins-domain+1
+    if (pbc ==True): nsets+=1
+    for i in range(nsets):
+        qset = []
+        for j in range(domain):
+            qset.append((i+j)%nspins)
+        active_qubit_sets.append(qset)
+    #build up TFIM hamiltonian in Pauli basis
     H = []
-    hterm = []
-    hterm.append([0]) #define active qubits for term
-    hm_array = [0]*4
-    hm_array[1] = -mu_x
-    hterm.append(hm_array)
-    H.append(hterm)
-    return H
-
-
-def get_2QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
-    H = []
-    for i in range(nspins-1):
+    #create a ham_term for each set of active qubits
+    for i in range(nsets):
         hterm = []
-        hterm.append([i,i+1]) #define active qubits for term
-        hm_array = [0]*16
-        hm_array[4] = -mu_x
-        hm_array[15] = -Jz
-        if (i == nspins-2): hm_array[1] = -mu_x
+        hterm.append(active_qubit_sets[i])
+        hm_array = [0]*4**domain
+        if (domain == 1):
+            #add transverse field term "X" to the one active qubit set
+            hm_array[1] = -mu_x
+        if (domain == 2):
+            #add exchange correlation term "ZZ" to all active qubit sets
+            hm_array[15] = -Jz
+            #add transverse field term "XI" to all active qubit sets
+            hm_array[4] = -mu_x
+            #add transverse field term "IX" to last active qubit set if PBC is false
+            if (pbc == False):
+                if (i == nsets-1):
+                    hm_array[1] = -mu_x
+        if (domain == 3):
+            #add exchange correlation term "ZZI" to all active qubit sets
+            hm_array[60] = -Jz
+            #add exchange correlation term "IZZ" to last active qubit set
+            if (i == nsets-1):
+                hm_array[15] = -Jz
+            #add transverse field term "XII" to all active qubit sets
+            hm_array[16] = -mu_x
+            #add transverse field term "IXI" to last active qubit set
+            if (i == nsets-1):
+                hm_array[4] = -mu_x
+                #add transverse field term "IIX" to last active qubit set if PBC is false
+                if (pbc == False):
+                    hm_array[1] = -mu_x   
         hterm.append(hm_array)
         H.append(hterm)
-    if(pbc):
-        hterm = []
-        hterm.append([0,nspins-1])
-        hm_array = [0]*16
-        hm_array[15] = -Jz 
-        hterm[-1].append(hm_array)
-        H.append(hterm)
-    return H
+    return H   
+    
 
 
-def get_3QPauliBasis_hamTFIM(Jz, mu_x, nspins, pbc=False):
-    H = []
-    hterm = []
-    hterm.append([0,1,2]) #define active qubits for term
-    hm_array = [0]*64
-    hm_array[1] = -mu_x
-    hm_array[4] = -mu_x
-    hm_array[16] = -mu_x
-    hm_array[15] = -Jz
-    hm_array[60] = -Jz
-    hterm.append(hm_array)
-    H.append(hterm)
-    #if(pbc):
-    #    hterm = []
-    #    hterm.append([0,nspins-1])
-    #    hm_array = [0]*16
-    #    hm_array[15] = -Jz
-    #    hterm[-1].append(hm_array)
-    #    H.append(hterm)
-    return H
-
-
-def get_exepctation_values_th(psi, Pauli_basis):
+def get_exepctation_values_th(psi, Pauli_basis, active_qubits, nspins):
     exp_values = []
     for i in range(len(Pauli_basis)):
-        exp_values.append(np.dot(psi,np.dot(Pauli_basis[i],psi)))
+        #enable pauli_basis operator to act on entire qubit system
+        full_op = [1]
+        pauli_op_not_applied = True
+        for k in range(nspins):
+            if (k in active_qubits):
+                if(pauli_op_not_applied): 
+                    full_op = np.kron(full_op, Pauli_basis[i])
+                    pauli_op_not_applied = False
+            else:
+                full_op = np.kron(full_op,np.eye(2))
+        #get expectation value of full pauli operator in state psi
+        exp_values.append(np.dot(psi,np.dot(full_op,psi)))
     return exp_values
 
 
-def compute_norm2q(expectation_values, dbeta, h):
+def compute_norm(expectation_values, dbeta, h, domain):
     norm = 0
     Pm_coeffs = -dbeta*h
     Pm_coeffs[0] += 1
-    for i in range(len(h)):
-        for j in range(len(h)):
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        if (domain == 1):
+            norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])]
+        if (domain == 2):
             norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable2q[i,j]*expectation_values[int(PauliMultTable2q[i,j])]
+        if (domain == 3):
+            norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])]
     return np.sqrt(norm)    
 
 
-def compute_norm1q(expectation_values, dbeta, h):
-    norm = 0
-    Pm_coeffs = -dbeta*h
-    Pm_coeffs[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])]
-    return np.sqrt(norm)
-
-def compute_norm3q(expectation_values, dbeta, h):
-    norm = 0
-    Pm_coeffs = -dbeta*h
-    Pm_coeffs[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])]
-    return np.sqrt(norm)
-
-def compute_Smatrix2q(expectation_values):
+def compute_Smatrix(expectation_values, h, domain):
     dim = len(expectation_values)
     S=np.zeros((dim,dim))
-    for i in range(dim):
-        for j in range(dim):
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        if (domain == 1):
+            S[i,j] = 2*np.real(PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])])
+        if (domain == 2):
             S[i,j] = 2*np.real(PauliMultCoeffTable2q[i,j]*expectation_values[int(PauliMultTable2q[i,j])])
+        if (domain == 3):
+            S[i,j] = 2*np.real(PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])])
     return S
 
 
-def compute_Smatrix1q(expectation_values, h):
+def compute_bvec(expectation_values, dbeta, h, norm, domain):
     dim = len(expectation_values)
-    S=np.zeros((dim,dim))
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        S[i,j] = 2*np.real(PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])])
-    return S
-
-def compute_Smatrix3q(expectation_values, h):
-    dim = len(expectation_values)
-    S=np.zeros((dim,dim))
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        S[i,j] = 2*np.real(PauliMultCoeffTable3q[i,j]*expectation_values[int(PauliMultTable3q[i,j])])
-    return S
-
-def compute_bvec2q(expectation_values, dbeta, h, norm):
-    dim = len(expectation_values)
-    b = np.zeros(dim) 
+    b = np.zeros(dim)
     Pm = -dbeta*h
     Pm[0] += 1
-    for i in range(dim):
-        for j in range(dim):
+    for i, j in itertools.product(range(len(h)), repeat=2):
+        if (domain == 1):
+            b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable1q[j,i]*expectation_values[int(PauliMultTable1q[i,j])])
+        if (domain == 2):
             b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable2q[j,i]*expectation_values[int(PauliMultTable2q[i,j])])
+        if (domain == 3):
+            b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable3q[j,i]*expectation_values[int(PauliMultTable3q[i,j])])
     return b
 
 
-def compute_bvec1q(expectation_values, dbeta, h, norm):
-    dim = len(expectation_values)
-    b = np.zeros(dim)
-    Pm = -dbeta*h
-    Pm[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable1q[j,i]*expectation_values[int(PauliMultTable1q[i,j])])
-    return b
 
-def compute_bvec3q(expectation_values, dbeta, h, norm):
-    dim = len(expectation_values)
-    b = np.zeros(dim)
-    Pm = -dbeta*h
-    Pm[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
-        b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable3q[j,i]*expectation_values[int(PauliMultTable3q[i,j])])
-    return b
-
-
-def qite_step2q(psi, pauli_basis, dbeta, h):
+def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain):
     #get expectation values of Pauli basis operators for state psi
-    exp_values = get_exepctation_values_th(psi, pauli_basis)
+    exp_values = get_exepctation_values_th(psi, pauli_basis, active_qubits, nspins)
     #print("exp_values is: ", exp_values)
     #compute S matrix
-    S_mat = compute_Smatrix2q(exp_values)
+    S_mat = compute_Smatrix(exp_values, h, domain)
     #compute norm of sum of Pauli basis ops on psi
-    norm = compute_norm2q(exp_values, dbeta, h)
+    norm = compute_norm(exp_values, dbeta, h, domain)
     #print("norm is: ", norm)
     #print("h is: ", h)
     #compute b-vector 
-    b_vec = compute_bvec2q(exp_values, dbeta, h, norm)
+    b_vec = compute_bvec(exp_values, dbeta, h, norm, domain)
     #solve linear equation for x
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
@@ -242,51 +222,6 @@ def qite_step2q(psi, pauli_basis, dbeta, h):
     #print("x is: ", x)
     return x
 
-
-def qite_step1q(psi, pauli_basis, dbeta, h):
-    #get expectation values of Pauli basis operators for state psi
-    exp_values = get_exepctation_values_th(psi, pauli_basis)
-    #print("exp_values is: ", exp_values)
-    #compute S matrix
-    S_mat = compute_Smatrix1q(exp_values,h)
-    #compute norm of sum of Pauli basis ops on psi
-    norm = compute_norm1q(exp_values, dbeta, h)
-    #print("norm is: ", norm)
-    #compute b-vector 
-    b_vec = compute_bvec1q(exp_values, dbeta, h, norm)
-    #solve linear equation for x
-    #dalpha = np.eye(len(pauli_basis))*regularizer
-    #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    clf = Lasso(alpha=0.001)
-    clf.fit(S_mat, -b_vec)
-    x = clf.coef_
-    #print("Smat is: ", S_mat)
-    #print("bvec is: ", b_vec)
-    #print("x is: ", x)
-    return x
-
-def qite_step3q(psi, pauli_basis, dbeta, h):
-    #get expectation values of Pauli basis operators for state psi
-    exp_values = get_exepctation_values_th(psi, pauli_basis)
-    print("exp_values is: ", exp_values)
-    #compute S matrix
-    S_mat = compute_Smatrix3q(exp_values,h)
-    #compute norm of sum of Pauli basis ops on psi
-    norm = compute_norm3q(exp_values, dbeta, h)
-    print("norm is: ", norm)
-    print("ham is: ", h)
-    #compute b-vector 
-    b_vec = compute_bvec3q(exp_values, dbeta, h, norm)
-    #solve linear equation for x
-    #dalpha = np.eye(len(pauli_basis))*regularizer
-    #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    clf = Lasso(alpha=0.001)
-    clf.fit(S_mat, -b_vec)
-    x = clf.coef_
-    print("Smat is: ", S_mat)
-    print("bvec is: ", b_vec)
-    print("x is: ", x)
-    return x
 
 
 def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
@@ -343,6 +278,15 @@ def Aop_to_Terms(A, domain):
             if (len(paulis) > 0):
                 terms.append(term)
     return terms
+
+
+#Jz = 1
+#mu_x = 2
+#nspins = 4
+#domain = 3
+#pbc = True
+#H = get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc)
+#print(H)
 
 
 #psi0 = [1,1]

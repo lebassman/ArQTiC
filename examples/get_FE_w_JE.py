@@ -32,20 +32,20 @@ def get_work(results, shots):
     return work
 
 #define system variables
-N = 2 #number of qubits
+N = 5 #number of qubits
 Jz = 0.1 #ising interaction strength
 mu_x = 0.3 #transverse magnetic field strength
-param_free_ham = Ising_Hamiltonian(2, Jz, [mu_x, 0, 0]) #parameter-free Hamiltonian
-ising_ham0 = Ising_Hamiltonian(2, Jz, [0.01, 0, 0]) #Hamiltonian at beginning of parameter sweep
+param_free_ham = Ising_Hamiltonian(N, Jz, [mu_x, 0, 0]) #parameter-free Hamiltonian
+ising_ham0 = Ising_Hamiltonian(N, Jz, [0.01, 0, 0]) #Hamiltonian at beginning of parameter sweep
 
 #define simulation variables
 tau = 10 #total trajectory time to evolve lambda from 0 to 1
 dtau = 1.0 #time-step for trajectory
 num_steps = int(tau/dtau)
-T = 100 #total number of trajectories
+T = 10 #total number of trajectories
 dt =  dtau #timestep for Trotter approximation: setting equal to dtau means one trotter-step per time-step in evolution
-lamba_protocol = np.linspace((dtau/tau),1.0,num_steps)
-dldt = 0.1 # d(lambda)/d(tau)
+lambda_protocol = np.linspace(1.0, 0, num_steps)
+dldt = (lambda_protocol[1]-lambda_protocol[0])/dtau # d(lambda)/d(tau)
 shots = 1000
 
 #define QITE variables
@@ -116,7 +116,7 @@ for i in range(T):
         #print(step)
         #make Hamilton Evolution program for given time-step of given trajectory
         prog_hamEvol = Program(N)
-        prog_hamEvol.make_hamEvol_prog(step, dtau, dt, lamba_protocol, param_free_ham)
+        prog_hamEvol.make_hamEvol_prog(step, dtau, dt, lambda_protocol, param_free_ham)
         #complete JE program: combing IPS preparation, QITE, and Hamiltonian evolution
         prog_JE.append_program(prog_hamEvol)
         prog_JE.append_program(prog_xBasis)
