@@ -146,7 +146,7 @@ class Program:
                     #apply coupling term
                 for q in range(self.nqubits-1):
                     self.gates.append(Gate("CNOT", [q,q+1]))
-                    self.gates.append(Gate("RZ", [q], [theta_z]))
+                    self.gates.append(Gate("RZ", [q+1], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
         
 

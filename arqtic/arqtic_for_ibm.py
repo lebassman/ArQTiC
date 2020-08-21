@@ -2,7 +2,7 @@ from arqtic.program import Program
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 
-def run_ibm(backend, prog, shots):
+def run_ibm(backend, prog, shots, opt_level=1):
     nqubits = prog.nqubits
     #declare registers
     q_regs = qk.QuantumRegister(nqubits, 'q')
@@ -29,7 +29,7 @@ def run_ibm(backend, prog, shots):
             ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
     #add measurement operators
     ibm_circuit.measure(q_regs, c_regs)
-    ibm_circ = qk.transpile(ibm_circuit, backend=backend, optimization_level=1)
+    ibm_circ = qk.transpile(ibm_circuit, backend=backend, optimization_level=opt_level)
     #simulator execution
     #idle simulator run
     result = qk.execute(ibm_circ, backend, shots=shots).result().get_counts()
