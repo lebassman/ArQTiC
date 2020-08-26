@@ -5,6 +5,8 @@ from arqtic.hamiltonians import Ising_Hamiltonian
 import qiskit
 from pyquil.paulis import PauliTerm, exponential_map
 
+#define HBAR
+HBAR = 0.658212 #ev*fs
 
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])
@@ -134,10 +136,10 @@ class Program:
                 
     def make_hamEvol_prog(self, time_step, dtau, dt, lambda_protocol, ising_ham):
         trotter_steps = int(dtau/dt) #number of Trotter-steps per time-step
-        theta_z = 2.0*ising_ham.exchange_coeff*dt
+        theta_z = 2.0*ising_ham.exchange_coeff*dt/HBAR
         for step in range(time_step):
             #apply external magnetic field term in x-dir
-            theta_x = 2*ising_ham.ext_mag_vec[0]*lambda_protocol[step]*dt
+            theta_x = 2*ising_ham.ext_mag_vec[0]*lambda_protocol[step]*dt/HBAR
             for m in range(trotter_steps):
                 for q in range(self.nqubits):
                     self.gates.append(Gate("H", [q]))
