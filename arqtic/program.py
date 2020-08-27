@@ -142,9 +142,7 @@ class Program:
             theta_x = 2*ising_ham.ext_mag_vec[0]*lambda_protocol[step]*dt/HBAR
             for m in range(trotter_steps):
                 for q in range(self.nqubits):
-                    self.gates.append(Gate("H", [q]))
-                    self.gates.append(Gate("RZ", [q], [theta_x])) 
-                    self.gates.append(Gate("H", [q])) 
+                    self.gates.append(Gate("RX", [q], [theta_x])) 
                     #apply coupling term
                 for q in range(self.nqubits-1):
                     self.gates.append(Gate("CNOT", [q,q+1]))
