@@ -149,7 +149,7 @@ class Program:
                     self.gates.append(Gate("RZ", [q+1], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
                     
-    def make_td_hamEvol_prog(self, time_steps, dt, e_ph, w_ph, H_BAR):
+    def make_td_hamEvol_prog(self, time_steps, dt, JZ, e_ph, w_ph, H_BAR):
         theta_z = -2.0 * JZ * dt / H_BAR
         for step in range(time_steps):
             t = (step + 0.5) * dt
