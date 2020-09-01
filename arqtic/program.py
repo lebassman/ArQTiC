@@ -148,7 +148,19 @@ class Program:
                     self.gates.append(Gate("CNOT", [q,q+1]))
                     self.gates.append(Gate("RZ", [q+1], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
-        
+                    
+    def make_pure_hamEvol_prog(self, time_steps, dt, ising_ham):
+        theta_z = 2.0*ising_ham.exchange_coeff*dt/HBAR
+        for step in range(time_steps):
+            #apply external magnetic field term in x-dir
+            theta_x = 2*ising_ham.ext_mag_vec[0]*dt/HBAR
+            for q in range(self.nqubits):
+                self.gates.append(Gate("RX", [q], [theta_x])) 
+            #apply coupling term
+            for q in range(self.nqubits-1):
+                self.gates.append(Gate("CNOT", [q,q+1]))
+                self.gates.append(Gate("RZ", [q+1], [theta_z]))
+                self.gates.append(Gate("CNOT", [q,q+1]))
 
     def make_QITE_prog(self, ising_ham, beta, dbeta, domain, psi0, regularizer):
         psi = psi0
