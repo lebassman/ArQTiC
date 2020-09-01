@@ -221,7 +221,7 @@ class Program:
         #exponentiate all the pyquil PauliTerms and add to qite program
         for ppt in pyquilPTs:
             #note we use -ppt since exponential map adds a negative to the exponent, and we want e^(+iX)
-            exp_gate = exponential_map(-ppt)(1.0)
+            exp_gate = exponential_map(ppt)(-1.0)
             #print(ppt)
             #print(exp_gate)
             #add exp_gate to program  
