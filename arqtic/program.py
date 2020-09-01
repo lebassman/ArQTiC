@@ -154,7 +154,7 @@ class Program:
         for step in range(time_steps):
             t = (step + 0.5) * dt
             #apply external magnetic field term in x-dir
-            theta_x = -2.0 * e_ph * np.cos(w_ph * t) * delta_t / H_BAR
+            theta_x = -2.0 * e_ph * np.cos(w_ph * t) * dt / H_BAR
             for q in range(self.nqubits):
                 self.gates.append(Gate("RX", [q], [theta_x])) 
             #apply coupling term
