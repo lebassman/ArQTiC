@@ -4,6 +4,8 @@ import arqtic.program as prog
 from arqtic.exceptions import Error
 import scipy
 from sklearn.linear_model import Lasso
+import qiskit as qk
+from qiskit.aqua.operators.primitive_ops import MatrixOp
 
 
 #define Pauli matrics
@@ -213,10 +215,10 @@ def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain):
     b_vec = compute_bvec(exp_values, dbeta, h, norm, domain)
     #solve linear equation for x
     #dalpha = np.eye(len(pauli_basis))*regularizer
-    #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    clf = Lasso(alpha=0.001)
-    clf.fit(S_mat, -b_vec)
-    x = clf.coef_ 
+    x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
+    #clf = Lasso(alpha=0.001)
+    #clf.fit(S_mat, -b_vec)
+    #x = clf.coef_ 
     #print("Smat is: ", S_mat)
     #print("bvec is: ", b_vec)
     #print("x is: ", x)
@@ -268,8 +270,8 @@ def Aop_to_Terms(A, domain):
     names = pauli_basis_names(domain)
     terms = []
     for i in range(nops):
-        if (np.abs(A[1][i]) > 1e-8):
-            coeff = A[1][i]
+        coeff = A[1][i]
+        if (abs(coeff) > 1e-12):
             paulis = []
             for j in range(domain):
                 if (names[i][j] != "I"):
@@ -278,6 +280,74 @@ def Aop_to_Terms(A, domain):
             if (len(paulis) > 0):
                 terms.append(term)
     return terms
+
+def Aop_to_matrix(A, domain):
+    unitary_mat = []
+    qubits = A[0]
+    unitary_mat.append(qubits)
+    coeffs = A[1]
+    names = pauli_basis_names(domain)
+    total_mat = np.zeros((2**domain, 2**domain), dtype=complex)
+    for i in range(len(coeffs)):
+        coeff = coeffs[i]
+        pauli_mat = [1]
+        for j in range(domain):
+            pauli = gate_matrix_dict[names[i][j]]
+            pauli_mat = np.kron(pauli_mat, pauli)
+        pauli_mat *= coeff
+        total_mat += pauli_mat
+            
+    unitary_mat.append(total_mat)
+    return unitary_mat
+
+
+def make_QITE_circ(ising_ham, beta, dbeta, domain, psi0, backend):
+        psi = psi0
+        nbeta = int(beta/dbeta)
+        nspins = ising_ham.nspins
+        Jz = ising_ham.exchange_coeff
+        mu_x = ising_ham.ext_mag_vec[0]
+        #get Pauli basis
+        pauli_basis = make_Pauli_basis(domain)
+        #get hamiltonian in Pauli basis
+        H = get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False)
+        #print("H is: ", H)
+        #creat array of operators to be exponentiated for QITE
+        A_ops = []
+        #loop over nbeta steps 
+        for ib in range(nbeta):
+            #print(ib)
+            for hterm in H:
+                #get the list of qubits this term acts on
+                active_qubits = hterm[0]
+                A_ops.append([])
+                A_ops[-1].append(active_qubits)
+                #get the array of coeffs for Pauli basis ops that act on these qubits
+                h = np.asarray(hterm[1])
+                #print("h is: ", h)
+                #get coeffs for qite circuit
+                x = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain)
+                #print("x is:", x)
+                op_coeffs = []
+                for i in range(len(x)):
+                    if (np.abs(x[i]) > 1e-12):
+                        op_coeffs.append(x[i])
+                    else: op_coeffs.append(0.0)
+                A_ops[-1].append(np.array(op_coeffs))
+                psi = get_new_psi(psi0, A_ops, pauli_basis, nspins, domain)
+                #print("psi is: ", psi)
+        #print("Aops is: ", A_ops)
+        circ = qk.QuantumCircuit(nspins,nspins)
+        for i in range(nbeta):
+            Xmat = Aop_to_matrix(A_ops[i], domain) 
+            #we include a -1.0 because exp_i() outputs e^(-iH) and we want e^(+iH)
+            #exp_mat_anal = la.expm(1j*mat[1])
+            #print(exp_mat_anal)
+            exp_mat_circuit = MatrixOp(Xmat[1], -1.0).exp_i().to_circuit()
+            exp_mat_circ = qk.transpile(exp_mat_circuit, backend)
+            circ.compose(exp_mat_circ, qubits=Xmat[0], inplace=True)
+            #print("circ is:", circ.qasm())
+        return circ
 
 
 #Jz = 1
@@ -303,5 +373,4 @@ def Aop_to_Terms(A, domain):
 #    print(norm)
 #    print(compute_Smatrix(exp_values))
 #    print(compute_bvec(exp_values, dbeta, h, norm))
-
 
