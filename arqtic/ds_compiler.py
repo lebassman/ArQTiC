@@ -2,9 +2,9 @@ from quantum_circuits import Program
 import numpy as np
 def ds_compile(circ_obj, circ_type, shots=1):
     if (circ_type == "ibm"):
-        return ds_compile_ibm(circ_obj,shots=1)
+        return ds_compile_ibm(circ_obj,shots=shots)
     if (circ_type == "rigetti"):
-        return ds_compile_rigetti(circ_obj,shots=1)
+        return ds_compile_rigetti(circ_obj,shots=shots)
     else:
         print("invalid circuit type. Use rigetti or ibm")
 
@@ -346,7 +346,7 @@ def ds_compile_ibm(circ_obj,shots=1):
 
 def ds_compile_rigetti(circ_obj,shots=1):
     import pyquil
-    from pyquil.gates import RX, RZ, CZ, MEASURE
+    from pyquil.gates import RX, RZ, CZ, MEASURE, RESET
     from pyquil.api import get_qc
     nqubits=len(circ_obj.get_qubits())
     lineList = [str(instr) for instr in circ_obj]
@@ -635,7 +635,7 @@ def ds_compile_rigetti(circ_obj,shots=1):
         i = i + 1
 
 
-    p = pyquil.Program() #compressed program
+    p = pyquil.Program(RESET())
     ro = p.declare('ro', memory_type='BIT', memory_size=nqubits)
 
     for i in range(len(G)):

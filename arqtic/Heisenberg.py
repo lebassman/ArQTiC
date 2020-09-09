@@ -7,9 +7,9 @@ import os
 
 
 
-#Create Data directory
+#Create data directory
 current=os.getcwd()
-newdir="Data"
+newdir="data"
 path = os.path.join(current, newdir) 
 if not os.path.isdir(path):
     os.makedirs(path)
@@ -211,6 +211,7 @@ class Heisenberg:
 
 
     def generate_ibm(self):
+        self.ibm_circuits_list=[]
         #convert from local circuits to IBM-specific circuit
         #IBM imports 
         import qiskit as qk
@@ -285,7 +286,7 @@ class Heisenberg:
                     tempfile.write("TFIM detected, enabling DS compiler\n")
                 temp=[]
                 for circuit in self.ibm_circuits_list:
-                    compiled=smart_compile(circuit,self.backend)
+                    compiled=ds_compile(circuit,self.backend)
                     temp.append(compiled)
                 self.ibm_circuits_list=temp
 
@@ -295,7 +296,7 @@ class Heisenberg:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
                 for circuit in self.ibm_circuits_list:
-                    compiled=smart_compile(circuit,self.backend)
+                    compiled=ds_compile(circuit,self.backend)
                     temp.append(compiled)
                 self.ibm_circuits_list=temp
                 print("Circuits compiled successfully")
@@ -313,6 +314,11 @@ class Heisenberg:
 
 
     def generate_rigetti(self):
+        import pyquil
+        from pyquil.quil import Program
+        from pyquil.gates import H, RX, RZ, CZ, RESET, MEASURE
+        from pyquil.api import get_qc
+        self.rigetti_circuits_list=[]
         #Rigettti imports
         import pyquil
         from pyquil.quil import Program
@@ -340,7 +346,11 @@ class Heisenberg:
             self.rigetti_circuits_list.append(p)
 
         if "y" in self.compile:
-            qc=get_qc(self.device_choice)
+            if self.QCQS in ["QS"]:
+                qc=get_qc(self.device_choice, as_qvm=True)
+            else:
+                qc=get_qc(self.device_choice)
+            qc.compiler.timeout = 20
             if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
                 #TFIM
                 print("TFIM detected, enabling DS compiler")
@@ -348,7 +358,9 @@ class Heisenberg:
                     tempfile.write("TFIM detected, enabling DS compiler\n")
                 temp=[]
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend,self.shots))
+                    #we run qc.compile on ds_compiler output to rewire qubits for target device
+                    temp.append(qc.compile(ds_compile(circuit,self.backend,self.shots)))
+                    #temp.append(qc.compile(ds_compile(circuit,self.backend,self.shots), to_native_gates=False, optimize=False))
                 self.rigetti_circuits_list=temp
 
             elif self.default_compiler in "ds":
@@ -357,7 +369,7 @@ class Heisenberg:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
                 for circuit in self.rigetti_circuits_list:
-                    temp.append(smart_compile(circuit,self.backend,self.shots))
+                    temp.append(ds_compile(circuit,self.backend,self.shots))
                 self.rigetti_circuits_list=temp
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
@@ -380,6 +392,7 @@ class Heisenberg:
             tempfile.write("Pyquil program list created successfully\n")
 
     def generate_cirq(self):
+        self.cirq_circuits_list=[]
         #Cirq imports
         import cirq
         print("Creating Cirq circuit list...")
@@ -407,9 +420,8 @@ class Heisenberg:
             tempfile.write("Successfully created Cirq circuit list\n")
 
     def generate_circuits(self):
-        # self.imports()
-        if len(self.circuits_list)==0:
-            self.generate_local_circuits()
+        self.circuits_list=[]
+        self.generate_local_circuits()
 
         if self.backend in "ibm":
             self.generate_ibm()
@@ -483,6 +495,7 @@ class Heisenberg:
 
 
     def run_circuits(self):
+        import glob
         if "y" in self.plot_flag:
             import matplotlib.pyplot as plt
         if self.backend in "ibm":
@@ -581,10 +594,11 @@ class Heisenberg:
                         plt.plot(range(self.steps+1), avg_mag_sim[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
-                        plt.savefig("Data/Simulator_result_qubit{}.png".format(j+1))
+                        plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
                         plt.close()
                     self.result_out_list.append(avg_mag_sim[0])
-                    np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_sim[0])
+                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_qubits))
+                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_qubits,len(existing)+1),avg_mag_sim[0])
                 self.result_matrix=np.stack(self.result_out_list)
                 print("Done")
                 with open(self.namevar,'a') as tempfile:
@@ -614,31 +628,38 @@ class Heisenberg:
                         plt.plot(range(self.steps+1), avg_mag_qc[0])
                         plt.xlabel("Simulation Timestep")
                         plt.ylabel("Average Magnetization")
-                        plt.savefig("Data/QC_result_qubit{}.png".format(j+1))
+                        plt.savefig("data/QC_result_qubit{}.png".format(j+1))
                         plt.close()
                     self.result_out_list.append(avg_mag_qc[0])
-                    np.savetxt("Data/Qubit {} Average Magnetization Data.txt".format(j+1),avg_mag_qc[0])
+                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_qubits))
+                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_qubits,len(existing)+1),avg_mac_qc[0])
                 self.result_matrix=np.stack(self.result_out_list)           
                 print("Done")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Done\n")
         elif "rigetti" in self.backend:
+            import pyquil
+            from pyquil.quil import Program
+            from pyquil.gates import H, RX, RZ, CZ, RESET, MEASURE
+            from pyquil.api import get_qc
             print("Running Pyquil programs...")
             with open(self.namevar,'a') as tempfile:
                 tempfile.write("Running Pyquil programs...\n")
-            qc=get_qc(self.device_choice)
+            if self.QCQS in ["QS"]:
+                qc=get_qc(self.device_choice, as_qvm=True)
+            else:
+                qc=get_qc(self.device_choice)
             results_list=[]
             first_ind=0
             #each circuit represents one timestep
             for circuit in self.rigetti_circuits_list:
-                # print("Ay I got a circuit here")
                 temp=qc.run(circuit)
                 results_list.append(temp)
 
             for i in range(self.num_qubits):
                 print("Post-processing qubit {} data...".format(i+1))
                 with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Post-processing qubit {} data...\n".format(i+1))
+                    tempfile.write("Post-Processing qubit {} data...\n".format(i+1))
                 qubit_specific_row=np.zeros(len(results_list))
                 for j in range(len(self.rigetti_circuits_list)):
                     results=results_list[j]
@@ -661,8 +682,10 @@ class Heisenberg:
                     plt.plot(qubit_specific_row)
                     plt.xlabel("Simulation Timestep")
                     plt.ylabel("Average Magnetization")
-                    plt.savefig("Data/Result_qubit{}.png".format(i+1))
+                    plt.savefig("data/Result_qubit{}.png".format(i+1))
                     plt.close()
+                existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(i+1,self.num_qubits))
+                np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(i+1,self.num_qubits,len(existing)+1),qubit_specific_row)
             print("Done")
             with open(self.namevar,'a') as tempfile:
                 tempfile.write("Done\n")
