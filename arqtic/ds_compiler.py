@@ -1,4 +1,4 @@
-from quantum_circuits import Program
+from arqtic.program import Program
 import numpy as np
 def ds_compile(circ_obj, circ_type, shots=1):
     if (circ_type == "ibm"):
