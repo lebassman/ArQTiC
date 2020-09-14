@@ -149,6 +149,21 @@ class Program:
                     self.gates.append(Gate("CNOT", [q,q+1]))
                     self.gates.append(Gate("RZ", [q+1], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
+                    
+    def make_td_hamEvol_prog(self, time_step, dt, Jz, e_ph, w_ph):
+        H_BAR = 0.658212    # eV*fs
+        theta_z = -2.0*Jz*dt/HBAR
+        for step in range(time_step):
+            t = (step + 0.5) * dt
+            #apply external magnetic field term in x-dir
+            theta_x = -2.0*e_ph*np.cos(w_ph*t)*dt/HBAR
+            for q in range(self.nqubits):
+                self.gates.append(Gate("RX", [q], [theta_x]))
+            #apply coupling term
+            for q in range(self.nqubits-1):
+                self.gates.append(Gate("CNOT", [q,q+1]))
+                self.gates.append(Gate("RZ", [q+1], [theta_z]))
+                self.gates.append(Gate("CNOT", [q,q+1]))
 
 
 
