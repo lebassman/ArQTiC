@@ -6,7 +6,8 @@ import scipy
 from sklearn.linear_model import Lasso
 import qiskit as qk
 from qiskit.aqua.operators.primitive_ops import MatrixOp
-
+from qiskit import Aer, execute
+import scipy.linalg as la
 
 #define Pauli matrics
 X = np.array([[0.0,1.0],[1.0,0.0]])
@@ -142,6 +143,8 @@ def get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False):
 
 def get_exepctation_values_th(psi, Pauli_basis, active_qubits, nspins):
     exp_values = []
+    #print("expectation values psi is", psi)
+    #print("norm of expectation values psi is", la.norm(psi))
     for i in range(len(Pauli_basis)):
         #enable pauli_basis operator to act on entire qubit system
         full_op = [1]
@@ -201,7 +204,7 @@ def compute_bvec(expectation_values, dbeta, h, norm, domain):
 
 
 
-def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain):
+def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain,regularizer):
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis, active_qubits, nspins)
     #print("exp_values is: ", exp_values)
@@ -215,10 +218,11 @@ def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain):
     b_vec = compute_bvec(exp_values, dbeta, h, norm, domain)
     #solve linear equation for x
     #dalpha = np.eye(len(pauli_basis))*regularizer
-    x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    #clf = Lasso(alpha=0.001)
-    #clf.fit(S_mat, -b_vec)
-    #x = clf.coef_ 
+    #x = np.linalg.lstsq(S_mat + dalpha, -b_vec, rcond=-1)[0]
+    #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
+    clf = Lasso(alpha=0.01)
+    clf.fit(S_mat, -b_vec)
+    x = clf.coef_ 
     #print("Smat is: ", S_mat)
     #print("bvec is: ", b_vec)
     #print("x is: ", x)
@@ -256,8 +260,9 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
 
 def get_state_from_string(string):
     psi = [1]
+    rev_str = str(string)[::-1]
     for q in range(len(string)):
-        if (string[q] == 0):
+        if (rev_str[q] == '0'):
             psi = np.kron(psi,np.array([1,0]))
         else:
             psi = np.kron(psi,np.array([0,1]))
@@ -300,55 +305,163 @@ def Aop_to_matrix(A, domain):
     unitary_mat.append(total_mat)
     return unitary_mat
 
+def measure(qc, ro, qbits, idx, backend, shots):
+    # Circuit to measure the expectation value of any Pauli string
+    # For 2-qubit Pauli measurements, see https://docs.microsoft.com/en-us/quantum/concepts/pauli-measurements
+    # initialize qc    
+    # measure II
+    if idx == 0:
+        return 1
+    # measure IX
+    elif idx == 1:
+        qc.swap(qbits[0],qbits[1])
+        qc.h(qbits[0])
+    # measure IY
+    elif idx == 2:
+        qc.swap(qbits[0],qbits[1])
+        qc.rx(np.pi/2,qbits[0])
+    # measure IZ
+    elif idx == 3:
+        qc.swap(qbits[0],qbits[1])
+    # measure XI
+    elif idx == 4:
+        qc.h(qbits[0])
+    # measure XX
+    elif idx == 5:
+        qc.h(qbits[0])
+        qc.h(qbits[1])
+        qc.cx(qbits[1],qbits[0])
+    # measure XY
+    elif idx == 6:
+        qc.h(qbits[0])
+        qc.rx(np.pi/2,qbits[1])
+        qc.cx(qbits[1],qbits[0])
+    # measure XZ
+    elif idx == 7:
+        qc.h(qbits[0])
+        qc.cx(qbits[1], qbits[0])
+    # measure YI
+    elif idx == 8:
+        qc.rx(np.pi/2, qbits[0])
+    # measure YX
+    elif idx == 9:
+        qc.rx(np.pi/2, qbits[0])
+        qc.h(qbits[1])
+        qc.cx(qbits[1], qbits[0])
+    # measure YY
+    elif idx == 10:
+        qc.rx(np.pi/2, qbits[0])
+        qc.rx(np.pi/2, qbits[1])
+        qc.cx(qbits[1], qbits[0])
+    #measure YZ
+    elif idx == 11:
+        qc.rx(np.pi/2, qbits[0])
+        qc.cx(qbits[1], qbits[0])
+    # measure ZI
+    elif idx == 12:
+        pass
+    # measure ZX
+    elif idx == 13:
+        qc.h(qbits[1])
+        qc.cx(qbits[1], qbits[0])
+    # measure ZY
+    elif idx == 14:
+        qc.rx(np.pi/2, qbits[1])
+        qc.cx(qbits[1], qbits[0])
+    # measure ZZ
+    elif idx == 15:
+        qc.cx(qbits[1], qbits[0])
+    # oops
+    else:
+        raise ValueError
 
-def make_QITE_circ(ising_ham, beta, dbeta, domain, psi0, backend):
-        psi = psi0
-        nbeta = int(beta/dbeta)
-        nspins = ising_ham.nspins
-        Jz = ising_ham.exchange_coeff
-        mu_x = ising_ham.ext_mag_vec[0]
-        #get Pauli basis
-        pauli_basis = make_Pauli_basis(domain)
-        #get hamiltonian in Pauli basis
-        H = get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False)
-        #print("H is: ", H)
-        #creat array of operators to be exponentiated for QITE
-        A_ops = []
-        #loop over nbeta steps 
-        for ib in range(nbeta):
-            #print(ib)
-            for hterm in H:
-                #get the list of qubits this term acts on
-                active_qubits = hterm[0]
-                A_ops.append([])
-                A_ops[-1].append(active_qubits)
-                #get the array of coeffs for Pauli basis ops that act on these qubits
-                h = np.asarray(hterm[1])
-                #print("h is: ", h)
-                #get coeffs for qite circuit
-                x = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain)
-                #print("x is:", x)
-                op_coeffs = []
-                for i in range(len(x)):
-                    if (np.abs(x[i]) > 1e-12):
-                        op_coeffs.append(x[i])
-                    else: op_coeffs.append(0.0)
-                A_ops[-1].append(np.array(op_coeffs))
-                psi = get_new_psi(psi0, A_ops, pauli_basis, nspins, domain)
-                #print("psi is: ", psi)
-        #print("Aops is: ", A_ops)
-        circ = qk.QuantumCircuit(nspins,nspins)
-        for i in range(nbeta):
-            Xmat = Aop_to_matrix(A_ops[i], domain) 
-            #we include a -1.0 because exp_i() outputs e^(-iH) and we want e^(+iH)
-            #exp_mat_anal = la.expm(1j*mat[1])
-            #print(exp_mat_anal)
-            exp_mat_circuit = MatrixOp(Xmat[1], -1.0).exp_i().to_circuit()
-            exp_mat_circ = qk.transpile(exp_mat_circuit, backend)
-            circ.compose(exp_mat_circ, qubits=Xmat[0], inplace=True)
-            #print("circ is:", circ.qasm())
-        return circ
+    qc.measure(qbits[0],ro[0])
+    
+    #print("qc is: ", qc.qasm())
+    
+    job = execute(qc, backend, shots=shots)
+    counts = job.result().get_counts()
+    print("counts is: ", counts)
+    pauli_expectation = (counts['00'] - counts['01']) / shots
+    return pauli_expectation
 
+
+def make_QITE_circ(ising_ham, qubits, beta, dbeta, domain, psi0, backend, regularizer):
+    psi = psi0
+    #print("qite psi is:", psi)
+    nbeta = int(beta/dbeta)
+    nspins = ising_ham.nspins
+    #Initialization of the circuit
+    qr = qk.QuantumRegister(nspins, name='q')
+    # classical 1 bit readout register
+    cr = qk.ClassicalRegister(nspins, name='c')
+    # our combined circuit
+    qcirc = qk.QuantumCircuit(qr, cr)
+    #system parameters
+    Jz = ising_ham.exchange_coeff
+    mu_x = ising_ham.ext_mag_vec[0]
+    #get Pauli basis
+    pauli_basis = make_Pauli_basis(domain)
+    #get hamiltonian in Pauli basis
+    H = get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False)
+    #print("H is: ", H)
+    #creat array of operators to be exponentiated for QITE
+    A_ops = []
+    #loop over nbeta steps 
+    for ib in range(nbeta):
+        for hterm in H:
+            #get the list of qubits this term acts on
+            active_qubits = hterm[0]
+            #print("active_qubits is:", active_qubits)
+            A_ops.append([])
+            A_ops[-1].append(active_qubits)
+            #get the array of coeffs for Pauli basis ops that act on these qubits
+            h = np.asarray(hterm[1])
+            #print("h is: ", h)
+            #get coeffs for qite circuit
+            x = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain,regularizer)
+            op_coeffs = []
+            for i in range(len(x)):
+                if (np.abs(x[i]) > 1e-12):
+                    op_coeffs.append(x[i])
+                else: op_coeffs.append(0.0)
+            x = op_coeffs
+            #print("x is:", x)
+            A_ops[-1].append(x)
+            Xmat=np.complex128(np.zeros([2**domain,2**domain]))
+            for p in range(4**domain):
+                Xmat+=np.complex128(x[p])*pauli_basis[p]
+            #print("xmat is:", Xmat)
+            exp_op = scipy.linalg.expm(-1j*dbeta*Xmat)
+            exp_op_full = [1]
+            exp_op_not_applied = True
+            for k in range(nspins):
+                if (k in active_qubits):
+                    if(exp_op_not_applied): 
+                        exp_op_full = np.kron(exp_op_full, exp_op)
+                        exp_op_not_applied = False
+                else:
+                    exp_op_full = np.kron(exp_op_full,np.eye(2))
+            #print("exp_op_full is:", exp_op_full)
+
+            psi = np.dot(exp_op_full, psi)
+            psi = psi/np.linalg.norm(psi)
+            #print("psi is:", psi)
+            qc = qk.QuantumCircuit(nspins)
+            qc.isometry(exp_op_full, qr, [])
+            qc = qk.transpile(qc, basis_gates = ['u1', 'u2', 'u3', 'cx'], optimization_level=3)
+            qcirc.compose(qc, qubits=qubits, inplace=True)
+            #E = 0
+            #qite_circ_IX = qcirc.copy()
+            #qite_circ_XI = qcirc.copy()
+            #qite_circ_ZZ = qcirc.copy()
+            #E += (-mu_x)*measure(qite_circ_IX, cr, qr, 1, backend, 1024)
+            #E += (-mu_x)*measure(qite_circ_XI, cr, qr, 4, backend, 1024)
+            #E += (-Jz)*measure(qite_circ_ZZ, cr, qr, 15, backend, 1024)
+            #Elist.append(E)
+            #print(E)
+    #print("Aops is: ", A_ops)
+    return qcirc
 
 #Jz = 1
 #mu_x = 2
