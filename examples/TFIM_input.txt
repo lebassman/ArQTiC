@@ -6,10 +6,10 @@ ibm
 0.01183898
 
 *h_ext
-0.0186792796 
+0.01183898
 
 *initial_spins 
-1,1
+1,1,1
 
 
 *delta_t 
@@ -21,7 +21,7 @@ ibm
 
 
 *num_qubits
-2
+3
 
 *QCQS
 QS

@@ -1,22 +1,21 @@
 *JX
-0.01183898
-
+0.1
 
 *JY 
-0.01183898
-
-
+0.1
 
 *initial_spins 
-1,1,1,-1,-1,-1
+1,1,1
 
 
 *delta_t 
 3
 
+*h_ext
+0.3
 
 *steps
-50
+40
 
 
 *shots 
@@ -24,14 +23,10 @@
 
 
 *num_qubits
-6
+3
 
 
 *device
 ibmq_16_melbourne
 
-*compile
-y
 
-*plot
-y

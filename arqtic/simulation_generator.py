@@ -26,7 +26,8 @@ class Simulation_Generator:
         self.namevar=str(completename)
         with open(self.namevar,'w') as tempfile:
             tempfile.write("***MISTIQS Session Log File***\n\n")
-        self.H_BAR = 0.658212    # eV*fs
+        #self.H_BAR = 0.658212    # eV*fs
+        self.H_BAR = 1
 
         #Default Parameters
         self.JX=self.JY=self.JZ=self.h_ext=0
