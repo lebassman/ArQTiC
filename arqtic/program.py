@@ -166,6 +166,38 @@ class Program:
                 self.gates.append(Gate("CNOT", [q,q+1]))
 
 
+    def make_tid_hamEvol_prog(self, time_step, dt, Jz, mu_x):
+        H_BAR = 0.658212    # eV*fs
+        #H_BAR = 1.0
+        theta_z = -2.0*Jz*dt/HBAR
+        theta_x = -2.0*mu_x*dt/HBAR
+        for step in range(time_step):
+            #apply external magnetic field term in x-dir
+            for q in range(self.nqubits):
+                self.gates.append(Gate("RX", [q], [theta_x]))
+            #apply coupling term
+            for q in range(self.nqubits-1):
+                self.gates.append(Gate("CNOT", [q,q+1]))
+                self.gates.append(Gate("RZ", [q+1], [theta_z]))
+                self.gates.append(Gate("CNOT", [q,q+1]))
+
+    def make_tid_pbc_hamEvol_prog(self, time_step, dt, Jz, mu_x):
+        H_BAR = 0.658212    # eV*fs
+        #H_BAR = 1.0
+        theta_z = -2.0*Jz*dt/HBAR
+        theta_x = -2.0*mu_x*dt/HBAR
+        for step in range(time_step):
+            #apply external magnetic field term in x-dir
+            for q in range(self.nqubits):
+                self.gates.append(Gate("RX", [q], [theta_x]))
+            #apply coupling term
+            for q in range(self.nqubits-1):
+                self.gates.append(Gate("CNOT", [q,q+1]))
+                self.gates.append(Gate("RZ", [q+1], [theta_z]))
+                self.gates.append(Gate("CNOT", [q,q+1]))
+            self.gates.append(Gate("CNOT", [self.nqubits-1,0]))
+            self.gates.append(Gate("RZ", [0], [theta_z]))
+            self.gates.append(Gate("CNOT", [self.nqubits-1,0]))
 
 
     def get_Qcompile_input(self, filename='QCompile_input.txt'):
