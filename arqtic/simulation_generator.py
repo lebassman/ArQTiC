@@ -4,9 +4,6 @@ from arqtic.program import Program, Gate
 from arqtic.ds_compiler import ds_compile
 import os
 
-
-
-
 #Create data directory
 current=os.getcwd()
 newdir="data"
@@ -25,7 +22,7 @@ class Simulation_Generator:
         completename = os.path.join(path,log)
         self.namevar=str(completename)
         with open(self.namevar,'w') as tempfile:
-            tempfile.write("***MISTIQS Session Log File***\n\n")
+            tempfile.write("***ArQTiC Session Log File***\n\n")
         #self.H_BAR = 0.658212    # eV*fs
         self.H_BAR = 1
 
@@ -39,21 +36,21 @@ class Simulation_Generator:
         self.QCQS="QS"
         self.shots=1024
         self.noise_choice="n"
-        self.device_choice="ibmq_bogota"
+        self.device_choice=""
         self.plot_flag="y"
         self.freq=0
         self.time_dep_flag="n"
         self.custom_time_dep="n"
         self.print_bool=0 #controls print statements for domain specific compiler integration
         self.smart_bool=False #controls transpiling in presence of domain specific compilation
-        self.circuits_list=[]
-        self.backend="ibm"
+        self.programs_list=[]
+        self.backend=""
         self.ibm_circuits_list=[]
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
-        self.auto_smart_compile="y"
-        self.default_compiler="native" #native or domain specific
         self.compile="y"
+        self.auto_ds_compile=="n"
+
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -98,8 +95,6 @@ class Simulation_Generator:
                 self.compile=value
             elif "*ext_dir" in data[i]:
                 self.ext_dir=value
-            elif "*auto_smart_compile" in data[i]:
-                self.auto_smart_compile=value
             elif "*custom_time_dep" in data[i]:
                 self.custom_time_dep=value
                 if self.custom_time_dep in "y":
@@ -122,12 +117,12 @@ class Simulation_Generator:
                 self.flip_vec[index]=0
                 index+=1
             else: 
-                print('Invalid spin entered')
+                print('Invalid initial spin state entered')
                 with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Invalid spin entered\n")
+                    tempfile.write("Invalid initial spin state entered\n")
 
 
-    def local_evolution_circuit(self,evol_time): #creates evolution circuit in local program
+    def heisenberg_evolution_program(self,evol_time): #creates evolution circuit in local program
     #Initial flipped spins are not implemented in this function due to the need for "barrier". Need to do that outside of this.
         prop_steps = int(evol_time / self.delta_t)  # number of propagation steps
         P=Program(self.num_spins)
@@ -191,18 +186,18 @@ class Simulation_Generator:
                 P.add_instr(ZZ_instr_set)
         return P
 
-    def generate_local_circuits(self):
+    def generate_programs(self):
 
-        ## Create circuits
-        circuits = []
+        ## Create programs
+        programs = []
         for j in range(0, self.steps+1):
-            print("Generating timestep {} circuit".format(j))
+            print("Generating timestep {} program".format(j))
             with open(self.namevar,'a') as tempfile:
-                tempfile.write("Generating timestep {} circuit\n".format(j))
+                tempfile.write("Generating timestep {} program\n".format(j))
             evolution_time = self.delta_t * j
-            circuits.append(self.local_evolution_circuit(evolution_time))
+            programs.append(self.heisenberg_evolution_program(evolution_time))
 
-        self.circuits_list=circuits
+        self.programs_list=programs
 
 
     def generate_ibm(self):
@@ -249,7 +244,7 @@ class Simulation_Generator:
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Creating IBM quantum circuit objects...\n")
         name=0
-        for circuit in self.circuits_list:
+        for program in self.programs_list:
             propcirc = qk.QuantumCircuit(self.qr, self.cr)
             index=0
             for flip in self.flip_vec:
@@ -258,7 +253,7 @@ class Simulation_Generator:
                     index+=1
                 else: index+=1
             propcirc.barrier()
-            for gate in circuit.gates:
+            for gate in program.gates:
                 if "H" in gate.name:
                     propcirc.h(gate.qubits[0])
                 elif "RZ" in gate.name:
@@ -274,7 +269,7 @@ class Simulation_Generator:
             tempfile.write("IBM quantum circuit objects created\n")
 
         if "y" in self.compile:
-            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
+            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_ds_compile=="y":
                 #TFIM
                 print("TFIM detected, enabling DS compiler")
                 with open(self.namevar,'a') as tempfile:
@@ -323,7 +318,7 @@ class Simulation_Generator:
         print("Creating Pyquil program list...")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Creating Pyquil program list...\n")
-        for circuit in self.circuits_list:
+        for circuit in self.programs_list:
             p = pyquil.Program(RESET()) #compressed program
             ro = p.declare('ro', memory_type='BIT', memory_size=self.num_spins)
             for gate in circuit.gates:
@@ -346,7 +341,7 @@ class Simulation_Generator:
             else:
                 qc=get_qc(self.device_choice)
             qc.compiler.timeout = 20
-            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_smart_compile=="y":
+            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_ds_compile=="y":
                 #TFIM
                 print("TFIM detected, enabling DS compiler")
                 with open(self.namevar,'a') as tempfile:
@@ -393,7 +388,7 @@ class Simulation_Generator:
         print("Creating Cirq circuit list...")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Creating Cirq circuit list...\n")
-        for circuit in self.circuits_list:
+        for circuit in self.programs_list:
             c=cirq.Circuit()
             qubit_list=cirq.LineQubit.range(self.num_spins)
             gate_list=[]
@@ -415,9 +410,6 @@ class Simulation_Generator:
             tempfile.write("Successfully created Cirq circuit list\n")
 
     def generate_circuits(self):
-        self.circuits_list=[]
-        self.generate_local_circuits()
-
         if self.backend in "ibm":
             self.generate_ibm()
         if self.backend in "rigetti":
