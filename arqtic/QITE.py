@@ -53,16 +53,14 @@ for i in range(16):
 
 
 PauliMultTable3q=np.zeros((64,64))
-for i1 in range(64):
-    for i2 in range(64):
-        PauliMultTable3q[i1,i2]=int(16*PauliMultTable2q[int(np.floor(i1/16)),int(np.floor(i2/16))]+PauliMultTable2q[i1%16,i2%16])
+for i in range(64):
+    for j in range(64):
+        PauliMultTable3q[i,j]=int(16*PauliMultTable2q[int(np.floor(i/16)),int(np.floor(j/16))]+PauliMultTable2q[i%16,ij%16])
 
 PauliMultCoeffTable3q=np.array(np.zeros((64,64)), dtype=complex)
-for i1 in range(64):
-    for i2 in range(64):
-        PauliMultCoeffTable3q[i1,i2]=PauliMultCoeffTable2q[int(np.floor(i1/16)),int(np.floor(i2/16))]*PauliMultCoeffTable2q[i1%16,i2%16]
-
-  
+for i in range(64):
+    for j in range(64):
+        PauliMultCoeffTable3q[i,j]=PauliMultCoeffTable2q[int(np.floor(i/16)),int(np.floor(j/16))]*PauliMultCoeffTable2q[i%16,j%16]
 
 
 def make_Pauli_basis(domain_size):
@@ -138,13 +136,131 @@ def get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False):
         hterm.append(hm_array)
         H.append(hterm)
     return H   
-    
+
+def get_PauliBasis_Heisenberg_Ham(sim_obj, domain, pbc=False):
+    nspins = sim_obj.num_spins
+    #check that domain=1 only when nspins=1
+    if (domain == 1):
+        if (nspins > 1):
+            raise Error('Domain can only be set to 1 with nspins=1')  
+    #check that domain <= nspins
+    if (domain > nspins):
+        raise Error('Domain is larger than the number of spins')
+    #check that domain < 4
+    if (domain > 3):
+        raise Error('At this time, domain is limited to 3')
+    #define active qubit sets based on domain and nspins
+    active_qubit_sets = []
+    nsets = nspins-domain+1
+    if (pbc ==True): nsets+=1
+    for i in range(nsets):
+        qset = []
+        for j in range(domain):
+            qset.append((i+j)%nspins)
+        active_qubit_sets.append(qset)
+    #build up TFIM hamiltonian in Pauli basis
+    H = []
+    #create a ham_term for each set of active qubits
+    for i in range(nsets):
+        hterm = []
+        hterm.append(active_qubit_sets[i])
+        hm_array = [0]*4**domain
+        if (domain == 1):
+            if sim_obj.ext_dir in "X":
+                #add transverse field term "X" to the one active qubit set
+                hm_array[1] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Y":
+                #add transverse field term "Y" to the one active qubit set
+                hm_array[2] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Z":
+                #add transverse field term "Z" to the one active qubit set
+                hm_array[3] = -sim_obj.h_ext
+
+        if (domain == 2):
+            if (sim_obj.Jx !=0):
+                #add exchange interaction term "XX" to all active qubit sets
+                hm_array[5] = -sim_obj.Jx
+            if (sim_obj.Jy !=0):
+                #add exchange interaction term "YY" to all active qubit sets
+                hm_array[10] = -sim_obj.Jy
+            if (sim_obj.Jz !=0):
+                #add exchange interaction term "ZZ" to all active qubit sets
+                hm_array[15] = -sim_obj.Jz
+            if sim_obj.ext_dir in "X":
+                #add transverse field term "XI" to all active qubit sets
+                hm_array[4] = -sim_obj.h_ext
+                #add transverse field term "IX" to last active qubit set if PBC is false
+                if (pbc == False):
+                    if (i == nsets-1):
+                        hm_array[1] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Y":
+                #add transverse field term "YI" to all active qubit sets
+                hm_array[8] = -sim_obj.h_ext
+                #add transverse field term "IY" to last active qubit set if PBC is false
+                if (pbc == False):
+                    if (i == nsets-1):
+                        hm_array[2] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Z":
+                #add transverse field term "ZI" to all active qubit sets
+                hm_array[12] = -sim_obj.h_ext
+                #add transverse field term "IZ" to last active qubit set if PBC is false
+                if (pbc == False):
+                    if (i == nsets-1):
+                        hm_array[3] = -sim_obj.h_ext
+                        
+        if (domain == 3):
+            if (sim_obj.Jx !=0):
+                #add exchange interaction term "XXI" to all active qubit sets
+                hm_array[20] = -sim_obj.Jx
+                #add exchange interaction term "IXX" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[5] = -sim_obj.Jx
+            if (sim_obj.Jy !=0):
+                #add exchange interaction term "YYI" to all active qubit sets
+                hm_array[40] = -sim_obj.Jy
+                #add exchange interaction term "IYY" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[10] = -sim_obj.Jy
+            if (sim_obj.Jz !=0):
+                #add exchange interaction term "ZZI" to all active qubit sets
+                hm_array[60] = -sim_obj.Jz
+                #add exchange interaction term "IZZ" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[15] = -sim_obj.Jz
+            if sim_obj.ext_dir in "X":        
+                #add transverse field term "XII" to all active qubit sets
+                hm_array[16] = -sim_obj.h_ext
+                #add transverse field term "IXI" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[4] = -sim_obj.h_ext
+                    #add transverse field term "IIX" to last active qubit set if PBC is false
+                    if (pbc == False):
+                        hm_array[1] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Y":        
+                #add transverse field term "YII" to all active qubit sets
+                hm_array[32] = -sim_obj.h_ext
+                #add transverse field term "IYI" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[8] = -sim_obj.h_ext
+                    #add transverse field term "IIY" to last active qubit set if PBC is false
+                    if (pbc == False):
+                        hm_array[2] = -sim_obj.h_ext
+            if sim_obj.ext_dir in "Z":        
+                #add transverse field term "ZII" to all active qubit sets
+                hm_array[48] = -sim_obj.h_ext
+                #add transverse field term "IZI" to last active qubit set
+                if (i == nsets-1):
+                    hm_array[12] = -sim_obj.h_ext
+                    #add transverse field term "IIZ" to last active qubit set if PBC is false
+                    if (pbc == False):
+                        hm_array[3] = -sim_obj.h_ext
+        hterm.append(hm_array)
+        H.append(hterm)
+    return H   
 
 
 def get_exepctation_values_th(psi, Pauli_basis, active_qubits, nspins):
     exp_values = []
-    #print("expectation values psi is", psi)
-    #print("norm of expectation values psi is", la.norm(psi))
     for i in range(len(Pauli_basis)):
         #enable pauli_basis operator to act on entire qubit system
         full_op = [1]
@@ -161,11 +277,17 @@ def get_exepctation_values_th(psi, Pauli_basis, active_qubits, nspins):
     return exp_values
 
 
-def compute_norm(expectation_values, dbeta, h, domain):
+def get_energy_from_exps(exp_vals, ham):
+    energy = 0
+    for i in range(len(exp_vals)): 
+            energy += exp_vals[i]*ham[i]
+    return energy
+
+def compute_norm(expectation_values, dbeta, ham, domain):
     norm = 0
-    Pm_coeffs = -dbeta*h
+    Pm_coeffs = -dbeta*ham
     Pm_coeffs[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
+    for i, j in itertools.product(range(len(ham)), repeat=2):
         if (domain == 1):
             norm += np.conj(Pm_coeffs[i])*Pm_coeffs[j]*PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])]
         if (domain == 2):
@@ -175,10 +297,10 @@ def compute_norm(expectation_values, dbeta, h, domain):
     return np.sqrt(norm)    
 
 
-def compute_Smatrix(expectation_values, h, domain):
+def compute_Smatrix(expectation_values, ham, domain):
     dim = len(expectation_values)
     S=np.zeros((dim,dim))
-    for i, j in itertools.product(range(len(h)), repeat=2):
+    for i, j in itertools.product(range(len(ham)), repeat=2):
         if (domain == 1):
             S[i,j] = 2*np.real(PauliMultCoeffTable1q[i,j]*expectation_values[int(PauliMultTable1q[i,j])])
         if (domain == 2):
@@ -188,12 +310,12 @@ def compute_Smatrix(expectation_values, h, domain):
     return S
 
 
-def compute_bvec(expectation_values, dbeta, h, norm, domain):
+def compute_bvec(expectation_values, dbeta, ham, norm, domain):
     dim = len(expectation_values)
     b = np.zeros(dim)
-    Pm = -dbeta*h
+    Pm = -dbeta*ham
     Pm[0] += 1
-    for i, j in itertools.product(range(len(h)), repeat=2):
+    for i, j in itertools.product(range(len(ham)), repeat=2):
         if (domain == 1):
             b[i]+=2*np.imag((np.conj(Pm[j])/norm)*PauliMultCoeffTable1q[j,i]*expectation_values[int(PauliMultTable1q[i,j])])
         if (domain == 2):
@@ -204,29 +326,26 @@ def compute_bvec(expectation_values, dbeta, h, norm, domain):
 
 
 
-def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain,regularizer):
+def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regularizer):
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis, active_qubits, nspins)
-    #print("exp_values is: ", exp_values)
+    #get energy from exp_values
+    energy = get_energy_from_sigma(exp_vals, ham)
     #compute S matrix
-    S_mat = compute_Smatrix(exp_values, h, domain)
+    S_mat = compute_Smatrix(exp_values, ham, domain)
     #compute norm of sum of Pauli basis ops on psi
-    norm = compute_norm(exp_values, dbeta, h, domain)
-    #print("norm is: ", norm)
-    #print("h is: ", h)
+    norm = compute_norm(exp_values, dbeta, ham, domain)
     #compute b-vector 
-    b_vec = compute_bvec(exp_values, dbeta, h, norm, domain)
+    b_vec = compute_bvec(exp_values, dbeta, ham, norm, domain)
     #solve linear equation for x
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat + dalpha, -b_vec, rcond=-1)[0]
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    clf = Lasso(alpha=0.01)
+    clf = Lasso(alpha=regularizer)
     clf.fit(S_mat, -b_vec)
     x = clf.coef_ 
-    #print("Smat is: ", S_mat)
-    #print("bvec is: ", b_vec)
-    #print("x is: ", x)
-    return x
+
+    return x, energy
 
 
 
@@ -234,15 +353,11 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
     psi = psi0
     for i in range(len(A_ops)):
         active_qubits = A_ops[i][0]
-        #print("active qubits is: ", active_qubits)
         op = np.zeros((2**domain,2**domain), dtype=complex)
-        #print("op is: ", op)
         for j in range(len(pauli_basis)):
             op += A_ops[i][1][j]*pauli_basis[j]
         #exponentiate op 
-        #print("op is: ", op)
         exp_op = scipy.linalg.expm(1j*op)
-        #print("exp_op is: ", exp_op)
         #exp_op just acts on active qubits so convert to op that acts on whole system
         exp_op_full = [1]
         exp_op_not_applied = True
@@ -253,7 +368,6 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
                     exp_op_not_applied = False
             else:
                 exp_op_full = np.kron(exp_op_full,np.eye(2))
-        #print("exp_op_full is: ", exp_op_full)
         psi = np.dot(exp_op_full, psi)
     return psi
 
@@ -305,133 +419,46 @@ def Aop_to_matrix(A, domain):
     unitary_mat.append(total_mat)
     return unitary_mat
 
-def measure(qc, ro, qbits, idx, backend, shots):
-    # Circuit to measure the expectation value of any Pauli string
-    # For 2-qubit Pauli measurements, see https://docs.microsoft.com/en-us/quantum/concepts/pauli-measurements
-    # initialize qc    
-    # measure II
-    if idx == 0:
-        return 1
-    # measure IX
-    elif idx == 1:
-        qc.swap(qbits[0],qbits[1])
-        qc.h(qbits[0])
-    # measure IY
-    elif idx == 2:
-        qc.swap(qbits[0],qbits[1])
-        qc.rx(np.pi/2,qbits[0])
-    # measure IZ
-    elif idx == 3:
-        qc.swap(qbits[0],qbits[1])
-    # measure XI
-    elif idx == 4:
-        qc.h(qbits[0])
-    # measure XX
-    elif idx == 5:
-        qc.h(qbits[0])
-        qc.h(qbits[1])
-        qc.cx(qbits[1],qbits[0])
-    # measure XY
-    elif idx == 6:
-        qc.h(qbits[0])
-        qc.rx(np.pi/2,qbits[1])
-        qc.cx(qbits[1],qbits[0])
-    # measure XZ
-    elif idx == 7:
-        qc.h(qbits[0])
-        qc.cx(qbits[1], qbits[0])
-    # measure YI
-    elif idx == 8:
-        qc.rx(np.pi/2, qbits[0])
-    # measure YX
-    elif idx == 9:
-        qc.rx(np.pi/2, qbits[0])
-        qc.h(qbits[1])
-        qc.cx(qbits[1], qbits[0])
-    # measure YY
-    elif idx == 10:
-        qc.rx(np.pi/2, qbits[0])
-        qc.rx(np.pi/2, qbits[1])
-        qc.cx(qbits[1], qbits[0])
-    #measure YZ
-    elif idx == 11:
-        qc.rx(np.pi/2, qbits[0])
-        qc.cx(qbits[1], qbits[0])
-    # measure ZI
-    elif idx == 12:
-        pass
-    # measure ZX
-    elif idx == 13:
-        qc.h(qbits[1])
-        qc.cx(qbits[1], qbits[0])
-    # measure ZY
-    elif idx == 14:
-        qc.rx(np.pi/2, qbits[1])
-        qc.cx(qbits[1], qbits[0])
-    # measure ZZ
-    elif idx == 15:
-        qc.cx(qbits[1], qbits[0])
-    # oops
-    else:
-        raise ValueError
-
-    qc.measure(qbits[0],ro[0])
-    
-    #print("qc is: ", qc.qasm())
-    
-    job = execute(qc, backend, shots=shots)
-    counts = job.result().get_counts()
-    print("counts is: ", counts)
-    pauli_expectation = (counts['00'] - counts['01']) / shots
-    return pauli_expectation
 
 
-def make_QITE_circ(ising_ham, qubits, beta, dbeta, domain, psi0, backend, regularizer):
+def make_QITE_circ(sim_obj, qubits, beta, dbeta, domain, psi0, backend, regularizer):
     psi = psi0
-    #print("qite psi is:", psi)
     nbeta = int(beta/dbeta)
-    nspins = ising_ham.nspins
+    nspins = sim_obj.num_spins
     #Initialization of the circuit
     qr = qk.QuantumRegister(nspins, name='q')
     # classical 1 bit readout register
     cr = qk.ClassicalRegister(nspins, name='c')
     # our combined circuit
     qcirc = qk.QuantumCircuit(qr, cr)
-    #system parameters
-    Jz = ising_ham.exchange_coeff
-    mu_x = ising_ham.ext_mag_vec[0]
     #get Pauli basis
     pauli_basis = make_Pauli_basis(domain)
     #get hamiltonian in Pauli basis
-    H = get_PauliBasis_hamTFIM(Jz, mu_x, nspins, domain, pbc=False)
-    #print("H is: ", H)
+    H = get_PauliBasis_Heisenberg_Ham(sim_obj, domain, pbc=False)
     #creat array of operators to be exponentiated for QITE
     A_ops = []
+    energies = []
     #loop over nbeta steps 
     for ib in range(nbeta):
         for hterm in H:
             #get the list of qubits this term acts on
             active_qubits = hterm[0]
-            #print("active_qubits is:", active_qubits)
             A_ops.append([])
             A_ops[-1].append(active_qubits)
             #get the array of coeffs for Pauli basis ops that act on these qubits
-            h = np.asarray(hterm[1])
-            #print("h is: ", h)
+            ham = np.asarray(hterm[1])
             #get coeffs for qite circuit
-            x = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, h, domain,regularizer)
+            x, energy = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regularizer)
             op_coeffs = []
             for i in range(len(x)):
                 if (np.abs(x[i]) > 1e-12):
                     op_coeffs.append(x[i])
                 else: op_coeffs.append(0.0)
             x = op_coeffs
-            #print("x is:", x)
             A_ops[-1].append(x)
             Xmat=np.complex128(np.zeros([2**domain,2**domain]))
             for p in range(4**domain):
                 Xmat+=np.complex128(x[p])*pauli_basis[p]
-            #print("xmat is:", Xmat)
             exp_op = scipy.linalg.expm(-1j*dbeta*Xmat)
             exp_op_full = [1]
             exp_op_not_applied = True
@@ -442,26 +469,16 @@ def make_QITE_circ(ising_ham, qubits, beta, dbeta, domain, psi0, backend, regula
                         exp_op_not_applied = False
                 else:
                     exp_op_full = np.kron(exp_op_full,np.eye(2))
-            #print("exp_op_full is:", exp_op_full)
 
             psi = np.dot(exp_op_full, psi)
             psi = psi/np.linalg.norm(psi)
-            #print("psi is:", psi)
             qc = qk.QuantumCircuit(nspins)
             qc.isometry(exp_op_full, qr, [])
-            qc = qk.transpile(qc, basis_gates = ['u1', 'u2', 'u3', 'cx'], optimization_level=3)
+            #qc = qk.transpile(qc, basis_gates = ['u1', 'u2', 'u3', 'cx'], optimization_level=3)
+            qc = qk.transpile(qc, optimization_level=3)
             qcirc.compose(qc, qubits=qubits, inplace=True)
-            #E = 0
-            #qite_circ_IX = qcirc.copy()
-            #qite_circ_XI = qcirc.copy()
-            #qite_circ_ZZ = qcirc.copy()
-            #E += (-mu_x)*measure(qite_circ_IX, cr, qr, 1, backend, 1024)
-            #E += (-mu_x)*measure(qite_circ_XI, cr, qr, 4, backend, 1024)
-            #E += (-Jz)*measure(qite_circ_ZZ, cr, qr, 15, backend, 1024)
-            #Elist.append(E)
-            #print(E)
-    #print("Aops is: ", A_ops)
-    return qcirc
+        energies.append(energy)
+    return qcirc, energies
 
 #Jz = 1
 #mu_x = 2

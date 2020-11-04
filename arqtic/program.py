@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import linalg as la
-import arqtic.QITE as qite
 import random
 from arqtic.hamiltonians import Ising_Hamiltonian
 
