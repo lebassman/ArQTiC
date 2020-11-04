@@ -49,8 +49,8 @@ class Simulation_Generator:
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
         self.compile="y"
-        self.auto_ds_compile=="n"
-
+        self.compiler="native"
+        self.observable="system_magnetization"
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -65,6 +65,8 @@ class Simulation_Generator:
                 self.JZ=float(value)
             elif "*h_ext" in data[i]:
                 self.h_ext=float(value)
+            elif "*ext_dir" in data[i]:
+                self.ext_dir=value
             elif "*initial_spins" in data[i]:
                 self.initial_spins=value
             elif "*delta_t" in data[i]:
@@ -89,12 +91,10 @@ class Simulation_Generator:
                 self.freq=float(value)
             elif "*time_dep_flag" in data[i]:
                 self.time_dep_flag=value
-            elif "*default_compiler" in data[i]:
-                self.default_compiler=value
+            elif "*compiler" in data[i]:
+                self.compiler=value
             elif "*compile" in data[i]:
                 self.compile=value
-            elif "*ext_dir" in data[i]:
-                self.ext_dir=value
             elif "*custom_time_dep" in data[i]:
                 self.custom_time_dep=value
                 if self.custom_time_dep in "y":
@@ -269,18 +269,7 @@ class Simulation_Generator:
             tempfile.write("IBM quantum circuit objects created\n")
 
         if "y" in self.compile:
-            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_ds_compile=="y":
-                #TFIM
-                print("TFIM detected, enabling DS compiler")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("TFIM detected, enabling DS compiler\n")
-                temp=[]
-                for circuit in self.ibm_circuits_list:
-                    compiled=ds_compile(circuit,self.backend)
-                    temp.append(compiled)
-                self.ibm_circuits_list=temp
-
-            elif self.default_compiler in "ds":
+            if self.compiler in "ds":
                 temp=[]
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -292,7 +281,7 @@ class Simulation_Generator:
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits compiled successfully\n")
-            elif self.default_compiler in "native":
+            elif self.compiler in "native":
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Transpiling circuits...\n")
@@ -301,6 +290,28 @@ class Simulation_Generator:
                 print("Circuits transpiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits transpiled successfully\n")
+            elif self.compiler in "tket":
+                from pytket.qiskit import qiskit_to_tk
+                from pytket.backends.ibm import IBMQBackend, IBMQEmulatorBackend, AerBackend
+                if self.device == "":
+                    tket_backend = AerBackend()
+                else: 
+                    if self.QCQS in ["QC"]:
+                        tket_backend = IBMQBackend(self.device)
+                    else: 
+                        tket_backend = IBMQEmulatorBackend(self.device)
+                print("Compiling circuits...")
+                with open(self.namevar,'a') as tempfile:
+                    tempfile.write("Compiling circuits...\n")
+                for circuit in self.ibm_circuit_list:
+                    tket_circ = qiskit_to_tk(c)
+                    tket_backend.compile_circuit(tket_circ)
+                    temp.append(tket_circ)
+                self.ibm_circuits_list=temp
+                print("Circuits compiled successfully")
+                with open(self.namevar,'a') as tempfile:
+                    tempfile.write("Circuits compiled successfully\n")
+
 
 
     def generate_rigetti(self):
@@ -341,19 +352,7 @@ class Simulation_Generator:
             else:
                 qc=get_qc(self.device_choice)
             qc.compiler.timeout = 20
-            if self.JZ != 0 and self.JX==self.JY==0 and self.h_ext!=0 and self.ext_dir=="X" and self.auto_ds_compile=="y":
-                #TFIM
-                print("TFIM detected, enabling DS compiler")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("TFIM detected, enabling DS compiler\n")
-                temp=[]
-                for circuit in self.rigetti_circuits_list:
-                    #we run qc.compile on ds_compiler output to rewire qubits for target device
-                    temp.append(qc.compile(ds_compile(circuit,self.backend,self.shots)))
-                    #temp.append(qc.compile(ds_compile(circuit,self.backend,self.shots), to_native_gates=False, optimize=False))
-                self.rigetti_circuits_list=temp
-
-            elif self.default_compiler in "ds":
+            if self.default_compiler in "ds":
                 temp=[]
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -376,6 +375,28 @@ class Simulation_Generator:
                 print("Circuits transpiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits transpiled successfully\n")
+            elif self.compiler in "tket":
+                from pytket.pyquil import pyquil_to_tk
+                from pytket.backends.forest import ForestBackend
+                if self.device == "":
+                    qvm = '{}q-qvm'.format(self.num_spins)
+                    tket_backend = ForestBackend(qvm, simulator=True)
+                else:
+                    if self.QCQS in ["QC"]:
+                        tket_backend = ForestBackend(self.device)
+                    else:
+                        tket_backend = ForestBackend(self.device, simulator=True)
+                print("Compiling circuits...")
+                with open(self.namevar,'a') as tempfile:
+                    tempfile.write("Compiling circuits...\n")
+                for circuit in self.ibm_circuit_list:
+                    tket_circ = qiskit_to_tk(c)
+                    tket_backend.compile_circuit(tket_circ)
+                    temp.append(tket_circ)
+                self.ibm_circuits_list=temp
+                print("Circuits compiled successfully")
+                with open(self.namevar,'a') as tempfile:
+                    tempfile.write("Circuits compiled successfully\n")
 
         print("Pyquil program list created successfully")
         with open(self.namevar,'a') as tempfile:
