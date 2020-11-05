@@ -27,20 +27,21 @@ class Simulation_Generator:
         self.H_BAR = 1
 
         #Default Parameters
-        self.JX=self.JY=self.JZ=self.h_ext=0
+        self.Jx=self.Jy=self.Jz=self.h_ext=0
         self.ext_dir="Z"
         self.num_spins=2
         self.initial_spins="1,1"
         self.delta_t=1
         self.steps=1
+        self.real_time="True"
         self.QCQS="QS"
         self.shots=1024
-        self.noise_choice="n"
+        self.noise_choice="False"
         self.device_choice=""
-        self.plot_flag="y"
+        self.plot_flag="True"
         self.freq=0
-        self.time_dep_flag="n"
-        self.custom_time_dep="n"
+        self.time_dep_flag="False"
+        self.custom_time_dep="False"
         self.print_bool=0 #controls print statements for domain specific compiler integration
         self.smart_bool=False #controls transpiling in presence of domain specific compilation
         self.programs_list=[]
@@ -48,7 +49,7 @@ class Simulation_Generator:
         self.ibm_circuits_list=[]
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
-        self.compile="y"
+        self.compile="True"
         self.compiler="native"
         self.observable="system_magnetization"
 
@@ -57,12 +58,12 @@ class Simulation_Generator:
 
         for i in range(len(data)-1):
             value=data[i+1].strip()
-            if "*JX" in data[i]:
-                self.JX=float(value)
-            elif "*JY" in data[i]:
-                self.JY=float(value)
-            elif "*JZ" in data[i]:
-                self.JZ=float(value)
+            if "*Jx" in data[i]:
+                self.Jx=float(value)
+            elif "*Jy" in data[i]:
+                self.Jy=float(value)
+            elif "*Jz" in data[i]:
+                self.Jz=float(value)
             elif "*h_ext" in data[i]:
                 self.h_ext=float(value)
             elif "*ext_dir" in data[i]:
@@ -73,6 +74,16 @@ class Simulation_Generator:
                 self.delta_t=int(value)
             elif "*steps" in data[i]:
                 self.steps=int(value)
+            elif "*real_time" in data[i]:
+                self.real_time=value
+            elif "*observable" in data[i]:
+                self.observable=value
+            elif "*beta" in data[i]:
+                self.beta=float(value)
+            elif "*delta_beta" in data[i]:
+                self.delta_beta=float(value)
+            elif "*domain" in data[i]:
+                self.domain=int(value)
             elif "*num_spins" in data[i]:
                 self.num_spins=int(value)
             elif "*QCQS" in data[i]:
@@ -97,7 +108,7 @@ class Simulation_Generator:
                 self.compile=value
             elif "*custom_time_dep" in data[i]:
                 self.custom_time_dep=value
-                if self.custom_time_dep in "y":
+                if self.custom_time_dep in "True":
                     from time_dependence import external_func
                     print("Found an external time dependence function")
                     with open(self.namevar,'a') as tempfile:
@@ -128,17 +139,17 @@ class Simulation_Generator:
         P=Program(self.num_spins)
         for step in range(prop_steps):
             t = (step + 0.5) * self.delta_t
-            if "n" in self.time_dep_flag:
+            if "False" in self.time_dep_flag:
                 psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
-            elif "y" in self.time_dep_flag:
-                if "y" in self.custom_time_dep:
+            elif "True" in self.time_dep_flag:
+                if "True" in self.custom_time_dep:
                     psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
-                elif "n" in self.custom_time_dep:
+                elif "False" in self.custom_time_dep:
                     psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
                 else:
-                    print("Invalid selection for custom_time_dep parameter. Please enter y or n.")
+                    print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
                     with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Invalid selection for custom_time_dep parameter. Please enter y or n.\n")
+                        tempfile.write("Invalid selection for custom_time_dep parameter. Please enter True or False.\n")
                     break
             ext_instr_set=[]
             XX_instr_set=[]
@@ -151,9 +162,9 @@ class Simulation_Generator:
                     ext_instr_set.append(Gate('RY', [q], angles=[psi_ext]))
                 elif self.ext_dir in "Z":
                     ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
-            psiX=-2.0*(self.JX)*self.delta_t/self.H_BAR
-            psiY=-2.0*(self.JY)*self.delta_t/self.H_BAR
-            psiZ=-2.0*(self.JZ)*self.delta_t/self.H_BAR
+            psiX=-2.0*(self.Jx)*self.delta_t/self.H_BAR
+            psiY=-2.0*(self.Jy)*self.delta_t/self.H_BAR
+            psiZ=-2.0*(self.Jz)*self.delta_t/self.H_BAR
 
             for q in range(self.num_spins-1):
                 XX_instr_set.append(Gate('H',[q]))
@@ -187,17 +198,19 @@ class Simulation_Generator:
         return P
 
     def generate_programs(self):
-
-        ## Create programs
         programs = []
-        for j in range(0, self.steps+1):
-            print("Generating timestep {} program".format(j))
-            with open(self.namevar,'a') as tempfile:
-                tempfile.write("Generating timestep {} program\n".format(j))
-            evolution_time = self.delta_t * j
-            programs.append(self.heisenberg_evolution_program(evolution_time))
-
-        self.programs_list=programs
+        #create programs for real_time evolution
+        if "True" in self.real_time:
+            for j in range(0, self.steps+1):
+                print("Generating timestep {} program".format(j))
+                with open(self.namevar,'a') as tempfile:
+                    tempfile.write("Generating timestep {} program\n".format(j))
+                evolution_time = self.delta_t * j
+                programs.append(self.heisenberg_evolution_program(evolution_time))
+            self.programs_list=programs
+        else:
+            from QITE import make_QITE_circ
+            qcirc, energies = make_QITE_circ(self, qubits, beta, dbeta, domain, psi0, backend, regularizer)
 
 
     def generate_ibm(self):
@@ -268,7 +281,7 @@ class Simulation_Generator:
         with open(self.namevar,'a') as tempfile:
             tempfile.write("IBM quantum circuit objects created\n")
 
-        if "y" in self.compile:
+        if "True" in self.compile:
             if self.compiler in "ds":
                 temp=[]
                 print("Compiling circuits...")

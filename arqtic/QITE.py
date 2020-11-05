@@ -55,7 +55,7 @@ for i in range(16):
 PauliMultTable3q=np.zeros((64,64))
 for i in range(64):
     for j in range(64):
-        PauliMultTable3q[i,j]=int(16*PauliMultTable2q[int(np.floor(i/16)),int(np.floor(j/16))]+PauliMultTable2q[i%16,ij%16])
+        PauliMultTable3q[i,j]=int(16*PauliMultTable2q[int(np.floor(i/16)),int(np.floor(j/16))]+PauliMultTable2q[i%16,j%16])
 
 PauliMultCoeffTable3q=np.array(np.zeros((64,64)), dtype=complex)
 for i in range(64):
@@ -330,7 +330,7 @@ def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regula
     #get expectation values of Pauli basis operators for state psi
     exp_values = get_exepctation_values_th(psi, pauli_basis, active_qubits, nspins)
     #get energy from exp_values
-    energy = get_energy_from_sigma(exp_vals, ham)
+    energy = get_energy_from_exps(exp_values, ham)
     #compute S matrix
     S_mat = compute_Smatrix(exp_values, ham, domain)
     #compute norm of sum of Pauli basis ops on psi
@@ -342,9 +342,8 @@ def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regula
     #x = np.linalg.lstsq(S_mat + dalpha, -b_vec, rcond=-1)[0]
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
     clf = Lasso(alpha=regularizer)
-    clf.fit(S_mat, -b_vec)
+    clf.fit(S_mat, b_vec)
     x = clf.coef_ 
-
     return x, energy
 
 
@@ -421,9 +420,19 @@ def Aop_to_matrix(A, domain):
 
 
 
-def make_QITE_circ(sim_obj, qubits, beta, dbeta, domain, psi0, backend, regularizer):
-    psi = psi0
+def make_QITE_circ(sim_obj, regularizer=0.01):
+    beta = sim_obj.beta
+    dbeta = sim_obj.delta_beta
+    domain = sim_obj.domain
+    backend = sim_obj.backend
     nbeta = int(beta/dbeta)
+    psi = [1]
+    #build up vector for initial state 
+    for spin in sim_obj.initial_spins:
+        if int(spin)==1:
+            psi = np.kron(psi,[1,0])
+        elif int(spin)==-1:
+            psi = np.kron(psi,[0,1])
     nspins = sim_obj.num_spins
     #Initialization of the circuit
     qr = qk.QuantumRegister(nspins, name='q')
@@ -476,7 +485,7 @@ def make_QITE_circ(sim_obj, qubits, beta, dbeta, domain, psi0, backend, regulari
             qc.isometry(exp_op_full, qr, [])
             #qc = qk.transpile(qc, basis_gates = ['u1', 'u2', 'u3', 'cx'], optimization_level=3)
             qc = qk.transpile(qc, optimization_level=3)
-            qcirc.compose(qc, qubits=qubits, inplace=True)
+            qcirc.compose(qc, qubits=qr, inplace=True)
         energies.append(energy)
     return qcirc, energies
 
