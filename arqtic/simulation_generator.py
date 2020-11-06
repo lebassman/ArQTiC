@@ -30,7 +30,7 @@ class Simulation_Generator:
         self.Jx=self.Jy=self.Jz=self.h_ext=0
         self.ext_dir="Z"
         self.num_spins=2
-        self.initial_spins="1,1"
+        self.initial_spins=[0,0]
         self.delta_t=1
         self.steps=1
         self.real_time="True"
@@ -115,22 +115,9 @@ class Simulation_Generator:
                         tempfile.write("Found an external time dependence function\n")
                     self.time_func=external_func
 
-
-        self.initial_spins=self.initial_spins.split(',')
         self.total_time=int(self.delta_t*self.steps)
-        self.flip_vec=np.zeros(self.num_spins)
-        index=0
-        for spin in self.initial_spins:
-            if int(spin)==-1:
-                self.flip_vec[index]=1
-                index+=1
-            elif int(spin)==1:
-                self.flip_vec[index]=0
-                index+=1
-            else: 
-                print('Invalid initial spin state entered')
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Invalid initial spin state entered\n")
+        self.initial_spins=self.initial_spins.split(' ')
+
 
 
     def heisenberg_evolution_program(self,evol_time): #creates evolution circuit in local program
@@ -260,7 +247,7 @@ class Simulation_Generator:
         for program in self.programs_list:
             propcirc = qk.QuantumCircuit(self.qr, self.cr)
             index=0
-            for flip in self.flip_vec:
+            for flip in self.initial_spins:
                 if int(flip)==1:
                     propcirc.x(self.qr[index])
                     index+=1

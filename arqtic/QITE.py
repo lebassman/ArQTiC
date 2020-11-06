@@ -3,7 +3,7 @@ import numpy as np
 import arqtic.program as prog
 from arqtic.exceptions import Error
 import scipy
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import Lasso, LinearRegression
 import qiskit as qk
 from qiskit.aqua.operators.primitive_ops import MatrixOp
 from qiskit import Aer, execute
@@ -273,7 +273,7 @@ def get_exepctation_values_th(psi, Pauli_basis, active_qubits, nspins):
             else:
                 full_op = np.kron(full_op,np.eye(2))
         #get expectation value of full pauli operator in state psi
-        exp_values.append(np.dot(psi,np.dot(full_op,psi)))
+        exp_values.append(np.real(np.dot(np.transpose(np.conj(psi)),np.dot(full_op,psi))))
     return exp_values
 
 
@@ -341,9 +341,10 @@ def qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regula
     #dalpha = np.eye(len(pauli_basis))*regularizer
     #x = np.linalg.lstsq(S_mat + dalpha, -b_vec, rcond=-1)[0]
     #x = np.linalg.lstsq(S_mat,-b_vec,rcond=-1)[0]
-    clf = Lasso(alpha=regularizer)
-    clf.fit(S_mat, b_vec)
-    x = clf.coef_ 
+    #clf = Lasso(alpha=regularizer)
+    reg = LinearRegression()
+    reg.fit(S_mat, b_vec)
+    x = reg.coef_ 
     return x, energy
 
 
@@ -368,6 +369,7 @@ def get_new_psi(psi0, A_ops, pauli_basis, nspins, domain):
             else:
                 exp_op_full = np.kron(exp_op_full,np.eye(2))
         psi = np.dot(exp_op_full, psi)
+        psi = psi/np.linalg.norm(psi)
     return psi
 
 
@@ -420,26 +422,14 @@ def Aop_to_matrix(A, domain):
 
 
 
-def make_QITE_circ(sim_obj, regularizer=0.01):
+def make_QITE_circ(sim_obj, qite_circ, regularizer=0.01):
     beta = sim_obj.beta
     dbeta = sim_obj.delta_beta
     domain = sim_obj.domain
     backend = sim_obj.backend
     nbeta = int(beta/dbeta)
-    psi = [1]
-    #build up vector for initial state 
-    for spin in sim_obj.initial_spins:
-        if int(spin)==1:
-            psi = np.kron(psi,[1,0])
-        elif int(spin)==-1:
-            psi = np.kron(psi,[0,1])
+    psi = get_state_from_string(sim_obj.initial_spins)
     nspins = sim_obj.num_spins
-    #Initialization of the circuit
-    qr = qk.QuantumRegister(nspins, name='q')
-    # classical 1 bit readout register
-    cr = qk.ClassicalRegister(nspins, name='c')
-    # our combined circuit
-    qcirc = qk.QuantumCircuit(qr, cr)
     #get Pauli basis
     pauli_basis = make_Pauli_basis(domain)
     #get hamiltonian in Pauli basis
@@ -449,6 +439,7 @@ def make_QITE_circ(sim_obj, regularizer=0.01):
     energies = []
     #loop over nbeta steps 
     for ib in range(nbeta):
+        total_eng = 0
         for hterm in H:
             #get the list of qubits this term acts on
             active_qubits = hterm[0]
@@ -458,6 +449,7 @@ def make_QITE_circ(sim_obj, regularizer=0.01):
             ham = np.asarray(hterm[1])
             #get coeffs for qite circuit
             x, energy = qite_step(psi, pauli_basis, active_qubits, nspins, dbeta, ham, domain,regularizer)
+            total_eng += energy
             op_coeffs = []
             for i in range(len(x)):
                 if (np.abs(x[i]) > 1e-12):
@@ -482,12 +474,20 @@ def make_QITE_circ(sim_obj, regularizer=0.01):
             psi = np.dot(exp_op_full, psi)
             psi = psi/np.linalg.norm(psi)
             qc = qk.QuantumCircuit(nspins)
-            qc.isometry(exp_op_full, qr, [])
+            qc.isometry(exp_op_full, qite_circ.qubits, [])
             #qc = qk.transpile(qc, basis_gates = ['u1', 'u2', 'u3', 'cx'], optimization_level=3)
             qc = qk.transpile(qc, optimization_level=3)
-            qcirc.compose(qc, qubits=qr, inplace=True)
-        energies.append(energy)
-    return qcirc, energies
+            qite_circ.compose(qc, inplace=True)
+        energies.append(total_eng)
+    final_eng = 0
+    for hterm in H:
+        active_qubits = hterm[0]
+        ham = np.asarray(hterm[1])    
+        exp_vals = get_exepctation_values_th(psi, pauli_basis, active_qubits, nspins)
+        final_eng += get_energy_from_exps(exp_vals, ham)
+    energies.append(final_eng)
+
+    return qite_circ, energies
 
 #Jz = 1
 #mu_x = 2

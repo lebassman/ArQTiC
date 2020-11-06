@@ -70,3 +70,27 @@ def get_ibm_circuit(backend, prog, transpile=True, opt_level=1, basis_gates = ['
         return ibm_circ
     else:
         return ibm_circuit
+    
+def add_prog_to_ibm_circuit(backend, prog, ibm_circuit, transpile=True, opt_level=1, basis_gates = ['cx', 'u1', 'u2', 'u3']):
+    for gate in prog.gates:
+        if (gate.name == "X"):
+            ibm_circuit.x(gate.qubits)
+        if (gate.name == "Y"):
+            ibm_circuit.y(gate.qubits)
+        if (gate.name == "Z"):
+            ibm_circuit.z(gate.qubits)
+        if (gate.name == "H"):
+            ibm_circuit.h(gate.qubits)
+        if (gate.name == "RZ"):
+            ibm_circuit.rz(gate.angles[0], gate.qubits)
+        if (gate.name == "RX"):
+            ibm_circuit.rx(gate.angles[0], gate.qubits)
+        if (gate.name == "CNOT"):
+            ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
+    #add measurement operators
+    if (transpile):
+        ibm_circ = qk.transpile(ibm_circuit, backend=backend, optimization_level=opt_level, basis_gates=basis_gates)
+        return ibm_circ
+    else:
+        return ibm_circuit
+
