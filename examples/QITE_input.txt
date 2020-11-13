@@ -8,7 +8,7 @@
 0.5
 
 *h_ext
-0.2
+0.7
 
 *ext_dir
 X
@@ -17,14 +17,13 @@ X
 10
 
 *delta_beta 
-1.0
+0.5
 
 *domain
 2
 
 *real_time
 False
-
 
 *QCQS
 QS
