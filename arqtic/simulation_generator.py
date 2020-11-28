@@ -42,8 +42,6 @@ class Simulation_Generator:
         self.freq=0
         self.time_dep_flag="False"
         self.custom_time_dep="False"
-        self.print_bool=0 #controls print statements for domain specific compiler integration
-        self.smart_bool=False #controls transpiling in presence of domain specific compilation
         self.programs_list=[]
         self.backend=""
         self.ibm_circuits_list=[]
@@ -52,6 +50,7 @@ class Simulation_Generator:
         self.compile="True"
         self.compiler="native"
         self.observable="system_magnetization"
+        self.measure_dir="z"
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -91,6 +90,8 @@ class Simulation_Generator:
             elif "*device" in data[i]:
                 self.device_choice=value
             elif "*backend" in data[i]:
+                self.backend=value
+            elif "*measure_dir" in data[i]:
                 self.backend=value
             elif "*noise_choice" in data[i]:
                 self.noise_choice=value
@@ -142,6 +143,7 @@ class Simulation_Generator:
             XX_instr_set=[]
             YY_instr_set=[]
             ZZ_instr_set=[]
+            measure_set=[]
             for q in range(self.num_spins):
                 if self.ext_dir in "X":
                     ext_instr_set.append(Gate('RX', [q], angles=[psi_ext]))
@@ -182,6 +184,14 @@ class Simulation_Generator:
                 P.add_instr(YY_instr_set)
             if self.JZ !=0:
                 P.add_instr(ZZ_instr_set)
+            if "x" in self.measure_dir:
+                for q in range(self.num_qubits):
+                    measure_set.append(Gate('H',[q]))
+                P.add_instr(measure_set)
+            elif "y" in self.measure_dir:
+                for q in range(self.num_qubits):
+                    measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
+                P.add_instr(measure_set)
         return P
 
     def generate_programs(self):
