@@ -184,14 +184,14 @@ class Simulation_Generator:
                 P.add_instr(YY_instr_set)
             if self.JZ !=0:
                 P.add_instr(ZZ_instr_set)
-            if "x" in self.measure_dir:
-                for q in range(self.num_qubits):
-                    measure_set.append(Gate('H',[q]))
-                P.add_instr(measure_set)
-            elif "y" in self.measure_dir:
-                for q in range(self.num_qubits):
-                    measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
-                P.add_instr(measure_set)
+        if "x" in self.measure_dir:
+            for q in range(self.num_qubits):
+                measure_set.append(Gate('H',[q]))
+            P.add_instr(measure_set)
+        elif "y" in self.measure_dir:
+            for q in range(self.num_qubits):
+                measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
+            P.add_instr(measure_set)
         return P
 
     def generate_programs(self):
