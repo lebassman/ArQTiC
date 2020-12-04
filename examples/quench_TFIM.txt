@@ -14,19 +14,19 @@
 X
 
 *delta_t 
-0.1
+1
 
 *steps
-40
+20
 
 *shots 
 1024
 
 *num_spins
-4
+8
 
 *device
-ibmq_santiago
+ibmq_paris
 
 *backend
 ibm

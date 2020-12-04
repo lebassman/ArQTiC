@@ -9,7 +9,7 @@ ibm
 0.01183898
 
 *initial_spins 
-1,1,1
+0 0 0
 
 
 *delta_t 
@@ -33,19 +33,16 @@ ibmq_ourense
 X
 
 *plot_flag
-n
-
-*auto_smart_compile
-n
+True
 
 *time_dep_flag
-y
+True
 
 *freq
 0.0048
 
 *plot_flag
-y
+True
 
 
 
