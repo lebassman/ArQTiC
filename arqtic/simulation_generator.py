@@ -30,14 +30,14 @@ class Simulation_Generator:
         self.Jx=self.Jy=self.Jz=self.h_ext=0
         self.ext_dir="Z"
         self.num_spins=2
-        self.initial_spins=[0,0]
+        self.initial_spins=[]
         self.delta_t=1
         self.steps=1
         self.real_time="True"
         self.QCQS="QS"
         self.shots=1024
         self.noise_choice="False"
-        self.device_choice=""
+        self.device=""
         self.plot_flag="True"
         self.freq=0
         self.time_dep_flag="False"
@@ -47,7 +47,7 @@ class Simulation_Generator:
         self.ibm_circuits_list=[]
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
-        self.compile="True"
+        self.compile="False"
         self.compiler="native"
         self.observable="system_magnetization"
         self.measure_dir="z"
@@ -70,7 +70,7 @@ class Simulation_Generator:
             elif "*initial_spins" in data[i]:
                 self.initial_spins=value
             elif "*delta_t" in data[i]:
-                self.delta_t=int(value)
+                self.delta_t=float(value)
             elif "*steps" in data[i]:
                 self.steps=int(value)
             elif "*real_time" in data[i]:
@@ -88,7 +88,7 @@ class Simulation_Generator:
             elif "*QCQS" in data[i]:
                 self.QCQS=value
             elif "*device" in data[i]:
-                self.device_choice=value
+                self.device=value
             elif "*backend" in data[i]:
                 self.backend=value
             elif "*measure_dir" in data[i]:
@@ -117,7 +117,8 @@ class Simulation_Generator:
                     self.time_func=external_func
 
         self.total_time=int(self.delta_t*self.steps)
-        self.initial_spins=self.initial_spins.split(' ')
+        if (self.initial_spins == []):
+            self.initial_spins=np.zeros(self.num_spins)
 
 
 
@@ -178,11 +179,11 @@ class Simulation_Generator:
 
             if self.h_ext != 0:
                 P.add_instr(ext_instr_set)
-            if self.JX !=0:
+            if self.Jx !=0:
                 P.add_instr(XX_instr_set)
-            if self.JY !=0:
+            if self.Jy !=0:
                 P.add_instr(YY_instr_set)
-            if self.JZ !=0:
+            if self.Jz !=0:
                 P.add_instr(ZZ_instr_set)
         if "x" in self.measure_dir:
             for q in range(self.num_qubits):
@@ -197,7 +198,7 @@ class Simulation_Generator:
     def generate_programs(self):
         programs = []
         #create programs for real_time evolution
-        if "True" in self.real_time:
+        if (self.real_time == "True"):
             for j in range(0, self.steps+1):
                 print("Generating timestep {} program".format(j))
                 with open(self.namevar,'a') as tempfile:
@@ -205,9 +206,18 @@ class Simulation_Generator:
                 evolution_time = self.delta_t * j
                 programs.append(self.heisenberg_evolution_program(evolution_time))
             self.programs_list=programs
+        #create programs for imaginary time evolution
         else:
             from QITE import make_QITE_circ
             qcirc, energies = make_QITE_circ(self, qubits, beta, dbeta, domain, psi0, backend, regularizer)
+            
+        #convert to backend specific circuits if one is requested    
+        if self.backend in "ibm":
+            self.generate_ibm()
+        if self.backend in "rigetti":
+            self.generate_rigetti()
+        if self.backend in "cirq":
+            self.generate_cirq()
 
 
     def generate_ibm(self):
@@ -224,31 +234,6 @@ class Simulation_Generator:
         from qiskit.circuit import Instruction
         self.qr=qk.QuantumRegister(self.num_spins, 'q')
         self.cr=qk.ClassicalRegister(self.num_spins, 'c')
-        if "y" in self.compile:
-            ## Show available backends
-            provider = qk.IBMQ.get_provider(group='open')
-            provider.backends()
-            
-            #choose the device you would like to run on
-            device = provider.get_backend(self.device_choice)
-
-            #gather fidelity statistics on this device if you want to create a noise model for the simulator
-            properties = device.properties()
-            coupling_map = device.configuration().coupling_map
-
-            #TO RUN ON THE SIMULATOR 
-            #create a noise model to use for the qubits of the simulator
-            noise_model = NoiseModel.from_backend(device)
-            # Get the basis gates for the noise model
-            basis_gates = noise_model.basis_gates
-
-            # Select the QasmSimulator from the Aer provider
-            simulator = Aer.get_backend('qasm_simulator')
-
-
-            #To run on the quantum computer, assign a quantum computer of your choice as the backend 
-            backend = provider.get_backend(self.device_choice)
-
 
         print("Creating IBM quantum circuit objects...")
         with open(self.namevar,'a') as tempfile:
@@ -279,6 +264,14 @@ class Simulation_Generator:
             tempfile.write("IBM quantum circuit objects created\n")
 
         if "True" in self.compile:
+            provider = qk.IBMQ.get_provider(group='open')
+            device = provider.get_backend(self.device)
+            #gather fidelity statistics on this device if you want to create a noise model for the simulator
+            #properties = device.properties()
+            #coupling_map = device.configuration().coupling_map
+            #noise_model = NoiseModel.from_backend(device)
+            #basis_gates = noise_model.basis_gates
+
             if self.compiler in "ds":
                 temp=[]
                 print("Compiling circuits...")
@@ -356,7 +349,7 @@ class Simulation_Generator:
             p.wrap_in_numshots_loop(self.shots)
             self.rigetti_circuits_list.append(p)
 
-        if "y" in self.compile:
+        if "True" in self.compile:
             if self.QCQS in ["QS"]:
                 qc=get_qc(self.device_choice, as_qvm=True)
             else:
@@ -440,13 +433,6 @@ class Simulation_Generator:
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Successfully created Cirq circuit list\n")
 
-    def generate_circuits(self):
-        if self.backend in "ibm":
-            self.generate_ibm()
-        if self.backend in "rigetti":
-            self.generate_rigetti()
-        if self.backend in "cirq":
-            self.generate_cirq()
 
     def connect_IBM(self,api_key=None, overwrite=False):
         import qiskit as qk
@@ -502,7 +488,7 @@ class Simulation_Generator:
 
     def run_circuits(self):
         import glob
-        if "y" in self.plot_flag:
+        if "True" in self.plot_flag:
             import matplotlib.pyplot as plt
         if self.backend in "ibm":
             import qiskit as qk
@@ -518,51 +504,40 @@ class Simulation_Generator:
             provider.backends()
 
             #choose the device you would like to run on
-            device = provider.get_backend(self.device_choice)
-
+            device = provider.get_backend(self.device)
             #gather fidelity statistics on this device if you want to create a noise model for the simulator
             properties = device.properties()
             coupling_map = device.configuration().coupling_map
-
-            #TO RUN ON THE SIMULATOR 
-            #create a noise model to use for the qubits of the simulator
             noise_model = NoiseModel.from_backend(device)
-            # Get the basis gates for the noise model
             basis_gates = noise_model.basis_gates
-
-            # Select the QasmSimulator from the Aer provider
-            simulator = Aer.get_backend('qasm_simulator')
-
-
-            #To run on the quantum computer, assign a quantum computer of your choice as the backend 
-            backend = provider.get_backend(self.device_choice)
 
             #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
             if self.QCQS in ["QC"]:
                 #quantum computer execution
-                job = qk.execute(self.ibm_circuits_list, backend=backend, shots=self.shots)
+                job = qk.execute(self.ibm_circuits_list, backend=device, shots=self.shots)
                 job_monitor(job)
 
             elif self.QCQS in ["QS"]:
+                simulator = Aer.get_backend('qasm_simulator')
                 #simulator execution
-                if self.noise_choice in ["y"]:
+                if self.noise_choice in ["True"]:
                     print("Running noisy simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noisy simulator job...\n")
-                    result_noise = execute(self.ibm_circuits_list, simulator, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                    result_noise = execute(self.ibm_circuits_list, simulator, noise_model=noise_model, coupling_map=coupling_map, basis_gates=basis_gates,shots=self.shots).result()
                     print("Noisy simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noisy simulator job successful\n")
-                elif self.noise_choice in ["n"]:
+                elif self.noise_choice in ["False"]:
                     print("Running noiseless simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noiseless simulator job...\n")
-                    result_noise=execute(self.ibm_circuits_list,simulator,coupling_map=coupling_map,basis_gates=basis_gates,shots=self.shots).result()
+                        result_noise=execute(self.ibm_circuits_list,simulator,shots=self.shots).result()
                     print("Noiseless simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noiseless simulator job successful\n")
                 else: 
-                    print("Please enter either y or n for the simulator noise query")
+                    print("Please enter either True or False for the simulator noise query")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Please enter either y or n for the simulator noise query\n")
             else:
@@ -591,7 +566,7 @@ class Simulation_Generator:
                         i += 1
                     # time_vec=np.linspace(0,total_t,steps)
                     # time_vec=time_vec*JX/H_BAR
-                    if "y" in self.plot_flag:
+                    if "True" in self.plot_flag:
                         fig, ax = plt.subplots()
                         plt.plot(range(self.steps+1), avg_mag_sim[0])
                         plt.xlabel("Simulation Timestep",fontsize=14)
@@ -609,7 +584,7 @@ class Simulation_Generator:
                         plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
                         plt.close()
                     self.result_out_list.append(avg_mag_sim[0])
-                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_qubits))
+                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
                     np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_sim[0])
                 self.result_matrix=np.stack(self.result_out_list)
                 print("Done")
@@ -635,7 +610,7 @@ class Simulation_Generator:
                             i += 1
                     
                     # QC
-                    if "y" in self.plot_flag:
+                    if "True" in self.plot_flag:
                         fig, ax = plt.subplots()
                         plt.plot(range(self.steps+1), avg_mag_qc[0])
                         plt.xlabel("Simulation Timestep",fontsize=14)
