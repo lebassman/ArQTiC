@@ -2,7 +2,7 @@
 2
 
 *initial_spins 
-0 0
+1 1
 
 *Jz 
 0.5
@@ -14,7 +14,7 @@
 X
 
 *beta
-10
+50
 
 *delta_beta 
 0.5
