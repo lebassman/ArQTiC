@@ -50,7 +50,7 @@ class Simulation_Generator:
         self.compile="False"
         self.compiler="native"
         self.observable="system_magnetization"
-        self.measure_dir="z"
+        self.observable_dir=["z"]
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -91,8 +91,8 @@ class Simulation_Generator:
                 self.device=value
             elif "*backend" in data[i]:
                 self.backend=value
-            elif "*measure_dir" in data[i]:
-                self.backend=value
+            elif "*observable_dir" in data[i]:
+                self.observable_dir=[value]
             elif "*noise_choice" in data[i]:
                 self.noise_choice=value
             elif "*plot_flag" in data[i]:
@@ -119,6 +119,23 @@ class Simulation_Generator:
         self.total_time=int(self.delta_t*self.steps)
         if (self.initial_spins == []):
             self.initial_spins=np.zeros(self.num_spins)
+
+
+        if "energy" in self.observable:
+            self.observable_dir=[]
+            if self.Jx != 0:
+                self.observable_dir.append("x")
+            if self.Jy != 0:
+                self.observable_dir.append("y")
+            if self.Jz != 0:
+                self.observable_dir.append("z")
+            if self.h_ext != 0:
+                if "x" in self.ext_dir and not ("x" in self.observable_dir):
+                    self.observable_dir.append("x")
+                if "y" in self.ext_dir and not ("y" in self.observable_dir):
+                    self.observable_dir.append("y")
+                if "z" in self.ext_dir and not ("z" in self.observable_dir):
+                    self.observable_dir.append("z")
 
 
 
@@ -185,11 +202,11 @@ class Simulation_Generator:
                 P.add_instr(YY_instr_set)
             if self.Jz !=0:
                 P.add_instr(ZZ_instr_set)
-        if "x" in self.measure_dir:
+        if "x" in self.observable_dir:
             for q in range(self.num_qubits):
                 measure_set.append(Gate('H',[q]))
             P.add_instr(measure_set)
-        elif "y" in self.measure_dir:
+        elif "y" in self.observable_dir:
             for q in range(self.num_qubits):
                 measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
             P.add_instr(measure_set)
@@ -221,7 +238,7 @@ class Simulation_Generator:
 
 
     def generate_ibm(self):
-        self.ibm_circuits_list=[]
+        tempcirclist=[]
         #convert from local circuits to IBM-specific circuit
         #IBM imports 
         import qiskit as qk
@@ -232,19 +249,19 @@ class Simulation_Generator:
         from qiskit.providers.aer.noise import NoiseModel
         from qiskit.circuit import quantumcircuit
         from qiskit.circuit import Instruction
-        self.qr=qk.QuantumRegister(self.num_spins, 'q')
-        self.cr=qk.ClassicalRegister(self.num_spins, 'c')
+        qr=qk.QuantumRegister(self.num_spins, 'q')
+        cr=qk.ClassicalRegister(self.num_spins, 'c')
 
         print("Creating IBM quantum circuit objects...")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Creating IBM quantum circuit objects...\n")
         name=0
         for program in self.programs_list:
-            propcirc = qk.QuantumCircuit(self.qr, self.cr)
+            propcirc = qk.QuantumCircuit(qr, cr)
             index=0
             for flip in self.initial_spins:
                 if int(flip)==1:
-                    propcirc.x(self.qr[index])
+                    propcirc.x(qr[index])
                     index+=1
                 else: index+=1
             propcirc.barrier()
@@ -257,8 +274,9 @@ class Simulation_Generator:
                     propcirc.rx(gate.angles[0],gate.qubits[0])
                 elif "CNOT" in gate.name:
                     propcirc.cx(gate.qubits[0],gate.qubits[1])
-            propcirc.measure(self.qr,self.cr)
-            self.ibm_circuits_list.append(propcirc)
+            propcirc.measure(qr,cr)
+            tempcirclist.append(propcirc)
+        self.ibm_circuits_list=tempcirclist
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("IBM quantum circuit objects created\n")
@@ -322,7 +340,7 @@ class Simulation_Generator:
         from pyquil.quil import Program
         from pyquil.gates import H, RX, RZ, CZ, RESET, MEASURE
         from pyquil.api import get_qc
-        self.rigetti_circuits_list=[]
+        tempcirclist=[]
         #Rigettti imports
         import pyquil
         from pyquil.quil import Program
@@ -347,7 +365,8 @@ class Simulation_Generator:
             for i in range(self.num_spins):
                 p.inst(pyquil.gates.MEASURE(i,ro[i]))
             p.wrap_in_numshots_loop(self.shots)
-            self.rigetti_circuits_list.append(p)
+            tempcirclist.append(p)
+        self.rigetti_circuits_list=tempcirclist
 
         if "True" in self.compile:
             if self.QCQS in ["QS"]:
@@ -406,7 +425,7 @@ class Simulation_Generator:
             tempfile.write("Pyquil program list created successfully\n")
 
     def generate_cirq(self):
-        self.cirq_circuits_list=[]
+        tempcirclist=[]
         #Cirq imports
         import cirq
         print("Creating Cirq circuit list...")
@@ -428,7 +447,8 @@ class Simulation_Generator:
             for i in range(self.num_spins):
                 gate_list.append(cirq.measure(qubit_list[i]))
             c.append(gate_list,strategy=cirq.InsertStrategy.EARLIEST)
-            self.cirq_circuits_list.append(c)
+            tempcirclist.append(c)
+        self.cirq_circuits_list=tempcirclist
         print("Successfully created Cirq circuit list")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Successfully created Cirq circuit list\n")
