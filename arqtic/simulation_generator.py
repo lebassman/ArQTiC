@@ -325,7 +325,7 @@ class Simulation_Generator:
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
-                for circuit in self.ibm_circuit_list:
+                for circuit in self.ibm_circuits_list:
                     tket_circ = qiskit_to_tk(c)
                     tket_backend.compile_circuit(tket_circ)
                     temp.append(tket_circ)
@@ -412,8 +412,7 @@ class Simulation_Generator:
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
-                for circuit in self.ibm_circuit_list:
-                    tket_circ = qiskit_to_tk(c)
+                for circuit in self.ibm_circuits_list:
                     tket_backend.compile_circuit(tket_circ)
                     temp.append(tket_circ)
                 self.ibm_circuits_list=temp
@@ -567,10 +566,25 @@ class Simulation_Generator:
                     tempfile.write("Please enter either QC or QS\n")
 
 
-            #Post Processing Depending on Choice
+            #Post Processing
             self.result_out_list=[]
             if self.QCQS in ["QS"]:
                 #SIMULATOR POST PROCESSING
+                for c in self.ibm_circuits_list:
+                    result_dict=result_noise.get_counts(c)                
+                    if "system_magnetization" in self.observable:
+                        system_magnetization(result_dict)
+                    elif "individual_magnetization" in self.observable:
+                        individual_magnetization(result_dict)
+                    elif "energy" in self.observable:
+                        energy(self.observable_dir,result_dict)
+                    #elif....
+
+
+
+
+
+######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
                 for j in range(self.num_spins):
                     avg_mag_sim = []
                     temp = []
@@ -585,8 +599,7 @@ class Simulation_Generator:
                             avg_mag_sim.append(temp)
                             temp = []
                         i += 1
-                    # time_vec=np.linspace(0,total_t,steps)
-                    # time_vec=time_vec*JX/H_BAR
+
                     if "True" in self.plot_flag:
                         fig, ax = plt.subplots()
                         plt.plot(range(self.steps+1), avg_mag_sim[0])
@@ -612,8 +625,30 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Done\n")
 
+
+
+
+
+
+
+
+
+
             elif self.QCQS in ["QC"]:
-                #QUANTUM COMPUTER POST PROCESSING
+                #QUANTUM COMPUTER RESULT POST PROCESSING
+                results=job.result()
+                for c in self.ibm_circuits_list:
+                    result_dict=results.get_counts(c)                
+                    if "system_magnetization" in self.observable:
+                        system_magnetization(result_dict)
+                    elif "individual_magnetization" in self.observable:
+                        individual_magnetization(result_dict)
+                    elif "energy" in self.observable:
+                        energy(self.observable_dir,result_dict)
+                    #elif....
+
+######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
+
                 for j in range(self.num_spins):
                     results = job.result()        
                     avg_mag_qc = []
@@ -654,6 +689,9 @@ class Simulation_Generator:
                 print("Done")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Done\n")
+
+
+###########   Need to update this to the new external observables post-processing scheme started in the IBM section
         elif "rigetti" in self.backend:
             import pyquil
             from pyquil.quil import Program
