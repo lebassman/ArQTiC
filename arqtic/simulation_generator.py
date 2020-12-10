@@ -143,73 +143,74 @@ class Simulation_Generator:
     #Initial flipped spins are not implemented in this function due to the need for "barrier". Need to do that outside of this.
         prop_steps = int(evol_time / self.delta_t)  # number of propagation steps
         P=Program(self.num_spins)
-        for step in range(prop_steps):
-            t = (step + 0.5) * self.delta_t
-            if "False" in self.time_dep_flag:
-                psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
-            elif "True" in self.time_dep_flag:
-                if "True" in self.custom_time_dep:
-                    psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
-                elif "False" in self.custom_time_dep:
-                    psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
-                else:
-                    print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
-                    with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Invalid selection for custom_time_dep parameter. Please enter True or False.\n")
-                    break
-            ext_instr_set=[]
-            XX_instr_set=[]
-            YY_instr_set=[]
-            ZZ_instr_set=[]
-            measure_set=[]
-            for q in range(self.num_spins):
-                if self.ext_dir in "X":
-                    ext_instr_set.append(Gate('RX', [q], angles=[psi_ext]))
-                elif self.ext_dir in "Y":
-                    ext_instr_set.append(Gate('RY', [q], angles=[psi_ext]))
-                elif self.ext_dir in "Z":
-                    ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
-            psiX=-2.0*(self.Jx)*self.delta_t/self.H_BAR
-            psiY=-2.0*(self.Jy)*self.delta_t/self.H_BAR
-            psiZ=-2.0*(self.Jz)*self.delta_t/self.H_BAR
+        for i in range(len(self.observable_dir)):
+            for step in range(prop_steps):
+                t = (step + 0.5) * self.delta_t
+                if "False" in self.time_dep_flag:
+                    psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
+                elif "True" in self.time_dep_flag:
+                    if "True" in self.custom_time_dep:
+                        psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
+                    elif "False" in self.custom_time_dep:
+                        psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
+                    else:
+                        print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
+                        with open(self.namevar,'a') as tempfile:
+                            tempfile.write("Invalid selection for custom_time_dep parameter. Please enter True or False.\n")
+                        break
+                ext_instr_set=[]
+                XX_instr_set=[]
+                YY_instr_set=[]
+                ZZ_instr_set=[]
+                measure_set=[]
+                for q in range(self.num_spins):
+                    if self.ext_dir in "X":
+                        ext_instr_set.append(Gate('RX', [q], angles=[psi_ext]))
+                    elif self.ext_dir in "Y":
+                        ext_instr_set.append(Gate('RY', [q], angles=[psi_ext]))
+                    elif self.ext_dir in "Z":
+                        ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
+                psiX=-2.0*(self.Jx)*self.delta_t/self.H_BAR
+                psiY=-2.0*(self.Jy)*self.delta_t/self.H_BAR
+                psiZ=-2.0*(self.Jz)*self.delta_t/self.H_BAR
 
-            for q in range(self.num_spins-1):
-                XX_instr_set.append(Gate('H',[q]))
-                XX_instr_set.append(Gate('H',[q+1]))
-                XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('RZ', [q+1], angles=[psiX]))
-                XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('H',[q]))
-                XX_instr_set.append(Gate('H',[q+1]))
+                for q in range(self.num_spins-1):
+                    XX_instr_set.append(Gate('H',[q]))
+                    XX_instr_set.append(Gate('H',[q+1]))
+                    XX_instr_set.append(Gate('CNOT',[q, q+1]))
+                    XX_instr_set.append(Gate('RZ', [q+1], angles=[psiX]))
+                    XX_instr_set.append(Gate('CNOT',[q, q+1]))
+                    XX_instr_set.append(Gate('H',[q]))
+                    XX_instr_set.append(Gate('H',[q+1]))
 
-                YY_instr_set.append(Gate('RX',[q],angles=[-np.pi/2]))
-                YY_instr_set.append(Gate('RX',[q+1],angles=[-np.pi/2]))
-                YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RZ', [q+1], angles=[psiY]))
-                YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RX',[q],angles=[np.pi/2]))
-                YY_instr_set.append(Gate('RX',[q+1],angles=[np.pi/2]))
+                    YY_instr_set.append(Gate('RX',[q],angles=[-np.pi/2]))
+                    YY_instr_set.append(Gate('RX',[q+1],angles=[-np.pi/2]))
+                    YY_instr_set.append(Gate('CNOT',[q, q+1]))
+                    YY_instr_set.append(Gate('RZ', [q+1], angles=[psiY]))
+                    YY_instr_set.append(Gate('CNOT',[q, q+1]))
+                    YY_instr_set.append(Gate('RX',[q],angles=[np.pi/2]))
+                    YY_instr_set.append(Gate('RX',[q+1],angles=[np.pi/2]))
 
-                ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
-                ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
-                ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
+                    ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
+                    ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
+                    ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
 
-            if self.h_ext != 0:
-                P.add_instr(ext_instr_set)
-            if self.Jx !=0:
-                P.add_instr(XX_instr_set)
-            if self.Jy !=0:
-                P.add_instr(YY_instr_set)
-            if self.Jz !=0:
-                P.add_instr(ZZ_instr_set)
-        if "x" in self.observable_dir:
-            for q in range(self.num_qubits):
-                measure_set.append(Gate('H',[q]))
-            P.add_instr(measure_set)
-        elif "y" in self.observable_dir:
-            for q in range(self.num_qubits):
-                measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
-            P.add_instr(measure_set)
+                if self.h_ext != 0:
+                    P.add_instr(ext_instr_set)
+                if self.Jx !=0:
+                    P.add_instr(XX_instr_set)
+                if self.Jy !=0:
+                    P.add_instr(YY_instr_set)
+                if self.Jz !=0:
+                    P.add_instr(ZZ_instr_set)
+            if "x" in self.observable_dir[i]:
+                for q in range(self.num_qubits):
+                    measure_set.append(Gate('H',[q]))
+                P.add_instr(measure_set)
+            elif "y" in self.observable_dir[i]:
+                for q in range(self.num_qubits):
+                    measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
+                P.add_instr(measure_set)
         return P
 
     def generate_programs(self):
