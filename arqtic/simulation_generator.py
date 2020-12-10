@@ -3,6 +3,7 @@ import numpy as np
 from arqtic.program import Program, Gate
 from arqtic.ds_compiler import ds_compile
 import os
+from observables import *
 
 #Create data directory
 current=os.getcwd()
@@ -573,11 +574,11 @@ class Simulation_Generator:
                 for c in self.ibm_circuits_list:
                     result_dict=result_noise.get_counts(c)                
                     if "system_magnetization" in self.observable:
-                        system_magnetization(result_dict)
+                        system_magnetization(result_dict,self.plot_flag)
                     elif "individual_magnetization" in self.observable:
-                        individual_magnetization(result_dict)
+                        individual_magnetization(result_dict,self.plot_flag)
                     elif "energy" in self.observable:
-                        energy(self.observable_dir,result_dict)
+                        energy(self.observable_dir,result_dict,self.plot_flag)
                     #elif....
 
 
@@ -640,11 +641,11 @@ class Simulation_Generator:
                 for c in self.ibm_circuits_list:
                     result_dict=results.get_counts(c)                
                     if "system_magnetization" in self.observable:
-                        system_magnetization(result_dict)
+                        system_magnetization(result_dict,self.plot_flag)
                     elif "individual_magnetization" in self.observable:
-                        individual_magnetization(result_dict)
+                        individual_magnetization(result_dict,self.plot_flag)
                     elif "energy" in self.observable:
-                        energy(self.observable_dir,result_dict)
+                        energy(self.observable_dir,result_dict,self.plot_flag)
                     #elif....
 
 ######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
