@@ -1,32 +1,35 @@
-*JX
-0.0
+*Jx
+-1.0
 
-*JY 
-0.0
+*Jy 
+-1.0
 
-*JZ
-0.8
+*Jz
+-0.2
 
 *h_ext
-0.2
+0.0
 
 *ext_dir
 X
 
 *delta_t 
-1
+0.05
 
 *steps
-20
+100
 
 *shots 
 1024
 
 *num_spins
-8
+7
+
+*initial_spins
+0 1 0 1 0 1 0 
 
 *device
-ibmq_paris
+ibmq_16_melbourne
 
 *backend
 ibm
@@ -36,3 +39,12 @@ QS
 
 *compile
 True
+
+*time_dep_flag
+False
+
+*freq
+0.048
+
+*observable
+staggered_magnetization

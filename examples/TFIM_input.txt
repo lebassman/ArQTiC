@@ -1,4 +1,3 @@
-
 *backend
 ibm
 
@@ -11,14 +10,11 @@ ibm
 *initial_spins 
 0 0 0
 
-
 *delta_t 
 3
 
-
 *steps
 20
-
 
 *num_spins
 3
