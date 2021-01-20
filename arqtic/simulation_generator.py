@@ -51,7 +51,7 @@ class Simulation_Generator:
         self.compile="False"
         self.compiler="native"
         self.observable="system_magnetization"
-        self.observable_dir=["z"]
+        self.observable_axis=["z"]
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -92,8 +92,8 @@ class Simulation_Generator:
                 self.device=value
             elif "*backend" in data[i]:
                 self.backend=value
-            elif "*observable_dir" in data[i]:
-                self.observable_dir=[value]
+            elif "*observable_axis" in data[i]:
+                self.observable_axis=[value]
             elif "*noise_choice" in data[i]:
                 self.noise_choice=value
             elif "*plot_flag" in data[i]:
@@ -123,20 +123,20 @@ class Simulation_Generator:
 
 
         if "energy" in self.observable:
-            self.observable_dir=[]
+            self.observable_axis=[]
             if self.Jx != 0:
-                self.observable_dir.append("x")
+                self.observable_axis.append("x")
             if self.Jy != 0:
-                self.observable_dir.append("y")
+                self.observable_axis.append("y")
             if self.Jz != 0:
-                self.observable_dir.append("z")
+                self.observable_axis.append("z")
             if self.h_ext != 0:
-                if "x" in self.ext_dir and not ("x" in self.observable_dir):
-                    self.observable_dir.append("x")
-                if "y" in self.ext_dir and not ("y" in self.observable_dir):
-                    self.observable_dir.append("y")
-                if "z" in self.ext_dir and not ("z" in self.observable_dir):
-                    self.observable_dir.append("z")
+                if "x" in self.ext_dir and not ("x" in self.observable_axis):
+                    self.observable_axis.append("x")
+                if "y" in self.ext_dir and not ("y" in self.observable_axis):
+                    self.observable_axis.append("y")
+                if "z" in self.ext_dir and not ("z" in self.observable_axis):
+                    self.observable_axis.append("z")
 
 
 
@@ -222,7 +222,7 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
-                for direction in self.observable_dir:
+                for direction in self.observable_axis:
                     programs.append(self.heisenberg_evolution_program(evolution_time,direction))
             self.programs_list=programs
         #create programs for imaginary time evolution
@@ -578,7 +578,7 @@ class Simulation_Generator:
                     elif "individual_magnetization" in self.observable:
                         individual_magnetization(result_dict,self.plot_flag)
                     elif "energy" in self.observable:
-                        energy(self.observable_dir,result_dict,self.plot_flag)
+                        energy(self.observable_axis,result_dict,self.plot_flag)
                     #elif....
 
 
@@ -645,7 +645,7 @@ class Simulation_Generator:
                     elif "individual_magnetization" in self.observable:
                         individual_magnetization(result_dict,self.plot_flag)
                     elif "energy" in self.observable:
-                        energy(self.observable_dir,result_dict,self.plot_flag)
+                        energy(self.observable_axis,result_dict,self.plot_flag)
                     #elif....
 
 ######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
