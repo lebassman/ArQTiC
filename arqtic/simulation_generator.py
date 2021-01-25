@@ -490,22 +490,6 @@ class Simulation_Generator:
                 self.generate_circuits()
             return self.cirq_circuits_list
 
-    def average_magnetization(self,result: dict, shots: int, qub: int):
-      """Compute average magnetization from results of qk.execution.
-      Args:
-      - result (dict): a dictionary with the counts for each qubit, see qk.result.result module
-      - shots (int): number of trials
-      Return:
-      - average_mag (float)
-      """
-      mag = 0
-      for spin_str, count in result.items():
-        spin_int = [1 - 2 * float(spin_str[qub])]
-        #print(spin_str)
-        mag += (sum(spin_int) / len(spin_int)) * count
-      average_mag = mag / shots
-      return average_mag
-
 
     def run_circuits(self):
         import glob
@@ -574,11 +558,11 @@ class Simulation_Generator:
                 for c in self.ibm_circuits_list:
                     result_dict=result_noise.get_counts(c)                
                     if "system_magnetization" in self.observable:
-                        system_magnetization(result_dict,self.plot_flag)
+                        result_out_list.append(system_magnetization(self,result_dict))
                     elif "individual_magnetization" in self.observable:
-                        individual_magnetization(result_dict,self.plot_flag)
+                        result_out_list.append(individual_magnetization(self,result_dict)) 
                     elif "energy" in self.observable:
-                        energy(self.observable_axis,result_dict,self.plot_flag)
+                        result_out_list.append(energy(self.observable_axis,result_dict,self.plot_flag))
                     #elif....
 
 
