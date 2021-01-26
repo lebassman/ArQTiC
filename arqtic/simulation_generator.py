@@ -563,61 +563,6 @@ class Simulation_Generator:
                         result_out_list.append(individual_magnetization(self,result_dict)) 
                     elif "energy" in self.observable:
                         result_out_list.append(energy(self.observable_axis,result_dict,self.plot_flag))
-                    #elif....
-
-
-
-
-
-######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
-                for j in range(self.num_spins):
-                    avg_mag_sim = []
-                    temp = []
-                    i = 1
-                    print("Post-processing qubit {} data".format(j+1))
-                    with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Post-processing qubit {} data\n".format(j+1))
-                    for c in self.ibm_circuits_list:
-                        result_dict = result_noise.get_counts(c)
-                        temp.append(self.average_magnetization(result_dict, self.shots,j))
-                        if i % (self.steps+1) == 0:
-                            avg_mag_sim.append(temp)
-                            temp = []
-                        i += 1
-
-                    if "True" in self.plot_flag:
-                        fig, ax = plt.subplots()
-                        plt.plot(range(self.steps+1), avg_mag_sim[0])
-                        plt.xlabel("Simulation Timestep",fontsize=14)
-                        plt.ylabel("Average Magnetization",fontsize=14)
-                        plt.tight_layout()
-                        every_nth = 2
-                        for n, label in enumerate(ax.xaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        every_nth = 2
-                        for n, label in enumerate(ax.yaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        # plt.yticks(np.arange(-1, 1, step=0.2))  # Set label locations.
-                        plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
-                        plt.close()
-                    self.result_out_list.append(avg_mag_sim[0])
-                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
-                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_sim[0])
-                self.result_matrix=np.stack(self.result_out_list)
-                print("Done")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Done\n")
-
-
-
-
-
-
-
-
-
 
             elif self.QCQS in ["QC"]:
                 #QUANTUM COMPUTER RESULT POST PROCESSING
@@ -625,55 +570,11 @@ class Simulation_Generator:
                 for c in self.ibm_circuits_list:
                     result_dict=results.get_counts(c)                
                     if "system_magnetization" in self.observable:
-                        system_magnetization(result_dict,self.plot_flag)
+                        result_out_list.append(system_magnetization(self,result_dict))
                     elif "individual_magnetization" in self.observable:
-                        individual_magnetization(result_dict,self.plot_flag)
+                        result_out_list.append(individual_magnetization(self,result_dict)) 
                     elif "energy" in self.observable:
-                        energy(self.observable_axis,result_dict,self.plot_flag)
-                    #elif....
-
-######################## This code below will go into the individual_magnetization function we will put in the external observables.py file
-
-                for j in range(self.num_spins):
-                    results = job.result()        
-                    avg_mag_qc = []
-                    temp = []
-                    i = 1
-                    print("Post-processing qubit {} data".format(j+1))
-                    with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Post-processing qubit {} data\n".format(j+1))
-                    for c in self.ibm_circuits_list:
-                            result_dict = results.get_counts(c)
-                            temp.append(self.average_magnetization(result_dict, self.shots,j))
-                            if i % (self.steps+1) == 0:
-                                    avg_mag_qc.append(temp)
-                                    temp = []
-                            i += 1
-                    
-                    # QC
-                    if "True" in self.plot_flag:
-                        fig, ax = plt.subplots()
-                        plt.plot(range(self.steps+1), avg_mag_qc[0])
-                        plt.xlabel("Simulation Timestep",fontsize=14)
-                        plt.ylabel("Average Magnetization",fontsize=14)
-                        plt.tight_layout()
-                        every_nth = 2
-                        for n, label in enumerate(ax.xaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        every_nth = 2
-                        for n, label in enumerate(ax.yaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        plt.savefig("data/QC_result_qubit{}.png".format(j+1))
-                        plt.close()
-                    self.result_out_list.append(avg_mag_qc[0])
-                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
-                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_qc[0])
-                self.result_matrix=np.stack(self.result_out_list)           
-                print("Done")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Done\n")
+                        result_out_list.append(energy(self.observable_axis,result_dict,self.plot_flag))
 
 
 ###########   Need to update this to the new external observables post-processing scheme started in the IBM section
