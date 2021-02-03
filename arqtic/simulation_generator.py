@@ -217,12 +217,12 @@ class Simulation_Generator:
         programs = []
         #create programs for real_time evolution
         if (self.real_time == "True"):
-            for j in range(0, self.steps+1):
-                print("Generating timestep {} program".format(j))
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Generating timestep {} program\n".format(j))
-                evolution_time = self.delta_t * j
-                for direction in self.observable_axis:
+            for direction in self.observable_axis:
+                for j in range(0, self.steps+1):
+                    print("Generating timestep {} program".format(j))
+                    with open(self.namevar,'a') as tempfile:
+                        tempfile.write("Generating timestep {} program\n".format(j))
+                    evolution_time = self.delta_t * j
                     programs.append(self.heisenberg_evolution_program(evolution_time,direction))
             self.programs_list=programs
         #create programs for imaginary time evolution
@@ -521,6 +521,7 @@ class Simulation_Generator:
                 #quantum computer execution
                 job = qk.execute(self.ibm_circuits_list, backend=device, shots=self.shots)
                 job_monitor(job)
+                self.result_object=job.result()
 
             elif self.QCQS in ["QS"]:
                 simulator = Aer.get_backend('qasm_simulator')
@@ -529,7 +530,8 @@ class Simulation_Generator:
                     print("Running noisy simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noisy simulator job...\n")
-                    result_noise = execute(self.ibm_circuits_list, simulator, noise_model=noise_model, coupling_map=coupling_map, basis_gates=basis_gates,shots=self.shots).result()
+                    result_noise = execute(self.ibm_circuits_list, simulator, noise_model=noise_model, coupling_map=coupling_map, basis_gates=basis_gates,shots=self.shots)
+                    self.result_object=result_noise.result()
                     print("Noisy simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noisy simulator job successful\n")
@@ -537,7 +539,8 @@ class Simulation_Generator:
                     print("Running noiseless simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noiseless simulator job...\n")
-                        result_noise=execute(self.ibm_circuits_list,simulator,shots=self.shots).result()
+                        result_noise=execute(self.ibm_circuits_list,simulator,shots=self.shots)
+                        self.result_object=result_noise.result()
                     print("Noiseless simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noiseless simulator job successful\n")
@@ -553,28 +556,12 @@ class Simulation_Generator:
 
             #Post Processing
             self.result_out_list=[]
-            if self.QCQS in ["QS"]:
-                #SIMULATOR POST PROCESSING
-                for c in self.ibm_circuits_list:
-                    result_dict=result_noise.get_counts(c)                
-                    if "system_magnetization" in self.observable:
-                        result_out_list.append(system_magnetization(self,result_dict))
-                    elif "individual_magnetization" in self.observable:
-                        result_out_list.append(individual_magnetization(self,result_dict)) 
-                    elif "energy" in self.observable:
-                        result_out_list.append(energy(self.observable_axis,result_dict,self.plot_flag))
-
-            elif self.QCQS in ["QC"]:
-                #QUANTUM COMPUTER RESULT POST PROCESSING
-                results=job.result()
-                for c in self.ibm_circuits_list:
-                    result_dict=results.get_counts(c)                
-                    if "system_magnetization" in self.observable:
-                        result_out_list.append(system_magnetization(self,result_dict))
-                    elif "individual_magnetization" in self.observable:
-                        result_out_list.append(individual_magnetization(self,result_dict)) 
-                    elif "energy" in self.observable:
-                        result_out_list.append(energy(self.observable_axis,result_dict,self.plot_flag))
+            if "system_magnetization" in self.observable:
+                result_out_list.append(system_magnetization(self))
+            elif "individual_magnetization" in self.observable:
+                result_out_list.append(individual_magnetization(self)) 
+            elif "energy" in self.observable:
+                result_out_list.append(energy(self))
 
 
 ###########   Need to update this to the new external observables post-processing scheme started in the IBM section
