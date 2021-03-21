@@ -52,6 +52,7 @@ class Simulation_Generator:
         self.compiler="native"
         self.observable="system_magnetization"
         self.observable_axis=["z"]
+        self.coefficient_list=[]
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -126,17 +127,23 @@ class Simulation_Generator:
             self.observable_axis=[]
             if self.Jx != 0:
                 self.observable_axis.append("x")
+                self.coefficient_list.append("Jx")
             if self.Jy != 0:
                 self.observable_axis.append("y")
+                self.coefficient_list.append("Jy")
             if self.Jz != 0:
                 self.observable_axis.append("z")
+                self.coefficient_list.append("Jz")
             if self.h_ext != 0:
-                if "x" in self.ext_dir and not ("x" in self.observable_axis):
+                if "x" in self.ext_dir:
                     self.observable_axis.append("x")
-                if "y" in self.ext_dir and not ("y" in self.observable_axis):
+                    self.coefficient_list.append("hx")
+                if "y" in self.ext_dir:
                     self.observable_axis.append("y")
-                if "z" in self.ext_dir and not ("z" in self.observable_axis):
+                    self.coefficient_list.append("hy")
+                if "z" in self.ext_dir:
                     self.observable_axis.append("z")
+                    self.coefficient_list.append("hz")
 
 
 

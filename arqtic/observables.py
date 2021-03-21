@@ -115,16 +115,30 @@ def individual_magnetization(sim_object):
 		tempfile.write("Done\n")
 
 def energy(sim_object):
+	#Alright general idea: gotta make that observables_axis happen. Actually maybe make a new thing called coefficients_list
+	#or something to support having the hx, hy, or hz in there so it can differentiate when single qubit processing occurs
 	num_pairs=sim_object.num_spins-1
-	num_dirs=len(sim_object.direction_list)
+	num_dirs=len(sim_object.observable_axis)
 
-	def energy_process(result:dict,shots:int,qub1:int,qub2:int)  
+	def energy_process_twoqub(result:dict,shots:int,qub1:int,qub2:int)  
+		energy1 = 0
+		energy2 = 0
+		for spin_str, count in result.items():
+			spin_int1 = [1 - 2 * float(spin_str[qub1])]
+			energy1 += (sum(spin_int1) / len(spin_int1)) * count
+			spin_int2 = [1 - 2 * float(spin_str[qub2])]
+			energy2 += (sum(spin_int2) / len(spin_int2)) * count
+		average_energy1 = energy1 / shots
+		average_energy2 = energy2 / shots
+		return average_energy1*average_energy2
+
+	def energy_process_onequb(result:dict,shots:int)  
 		energy = 0
 		for spin_str, count in result.items():
-			multiplied = float(spin_str[qub1]) * float(spin_str[qub2])
-			energy += energy * count
-		average_energy = energy / shots
-		return average_energy
+			spin_int = [1 - 2 * float(s) for s in spin_str]
+			energy += (sum(spin_int) / len(spin_int)) * count
+	  	average_energy = mag / shots
+	  	return average_energy
 
 	avg_en = []
 
@@ -136,18 +150,37 @@ def energy(sim_object):
 	i=1
 	overall_temp = []
 	summed_avg_en=np.zeros(sim_object.steps+1)
+	coefficient_index=0
+	#alright we have one full timeseries worth of circuits for every direction, right after each other
+	#For each timestep, we need to sum coefficient*observable, so make a list of timestep arrays (one for each
+	#direction, then element-wise sum them all
 	for c in sim_object.ibm_circuits_list:
 		temp=[]
+		overall_temp=[]
 		result_dict = sim_object.result_object.get_counts(c)
-		for z in range(num_pairs):
-			temp.append(energy_process(result_dict, sim_object.shots,z,z+1))
+		if "Jx" in sim_object.coefficient_list[coefficient_index]:
+			matching_coefficient=sim_object.Jx
+		elif "Jy" in sim_object.coefficient_list[coefficient_index]:
+			matching_coefficient=sim_object.Jy
+		elif "Jz" == sim_object.coefficient_list[coefficient_index]:
+			matching_coefficient=sim_object.Jz
+		elif sim_object.coefficient_list[coefficient_index] in ["hx","hy","hz"]:
+			#need to figure out how to support time dependent h(t) in multiplication here
+			matching_coefficient=0 #placeholder
+		
+		if sim_object.coefficient_list[coefficient_index] in ["Jx","Jy","Jz"]:
+			for z in range(num_pairs):
+				temp.append(energy_process_twoqub(result_dict, sim_object.shots,z,z+1))
+				overall_temp.append(np.sum(temp))
+		elif sim_object.coefficient_list[coefficient_index] in ["hx","hy","hz"]:
+			overall_temp.append(energy_process_onequb(result_dict,sim_object.shots))
 
-		overall_temp.append(np.sum(temp))
 		if i % (sim_object.steps+1) == 0:
-			summed_avg_en+=np.array(overall_temp) 
+			summed_avg_en+=matching_coefficient*np.array(overall_temp) 
 			#every time it counts the length of the timeseries, that means a whole direction has finished.
 			#then sum each direction with each other elementwise to get sum of each direction at every timestep
 			overall_temp = []
+			coefficient_index+=1
 		i += 1
 
 	if "True" in sim_object.plot_flag:
