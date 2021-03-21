@@ -6,7 +6,7 @@ def system_magnetization(sim_object):
   Return:
   - average_mag (float)
   """
-    def system_mag_process(result,shots)
+    def system_mag_process(result:dict,shots:int)
 		mag = 0
 		for spin_str, count in result.items():
 			spin_int = [1 - 2 * float(s) for s in spin_str]
@@ -24,7 +24,7 @@ def system_magnetization(sim_object):
 		result_dict = sim_object.result_object.get_counts(c)
 		temp.append(system_mag_process(result_dict, sim_object.shots))
 		if i % (sim_object.steps+1) == 0:
-			avg_mag_sim.append(temp)
+			avg_mag.append(temp)
 			temp = []
 		i += 1
 
@@ -65,7 +65,7 @@ def individual_magnetization(sim_object):
 	  Return:
 	  - average_mag (float)
 	  """
-	def individual_mag_process(result,shots,qub)  
+	def individual_mag_process(result:dict,shots:int,qub:int)  
 		mag = 0
 		for spin_str, count in result.items():
 			spin_int = [1 - 2 * float(spin_str[qub])]
@@ -85,7 +85,7 @@ def individual_magnetization(sim_object):
 			result_dict = sim_object.result_object.get_counts(c)
 			temp.append(individual_mag_process(result_dict, sim_object.shots,j))
 			if i % (sim_object.steps+1) == 0:
-				avg_mag_sim.append(temp)
+				avg_mag.append(temp)
 				temp = []
 			i += 1
 
@@ -118,7 +118,7 @@ def energy(sim_object):
 	num_pairs=sim_object.num_spins-1
 	num_dirs=len(sim_object.direction_list)
 
-	def energy_process(result,shots,qub1,qub2)  
+	def energy_process(result:dict,shots:int,qub1:int,qub2:int)  
 		energy = 0
 		for spin_str, count in result.items():
 			multiplied = float(spin_str[qub1]) * float(spin_str[qub2])
@@ -174,3 +174,63 @@ def energy(sim_object):
 	print("Done")
 	with open(sim_object.namevar,'a') as tempfile:
 		tempfile.write("Done\n")
+
+def staggered_mag(sim_object):
+	def staggered_magnetization_process(result: dict, shots: int):
+
+        sm_val = 0
+
+        for spin_str, count in result.items():
+
+            spin_int = [1 - 2 * float(s) for s in spin_str]
+
+            for i in range(len(spin_int)):
+
+                spin_int[i] = spin_int[i]*(-1)**i
+
+            sm_val += (sum(spin_int) / len(spin_int)) * count
+
+        average_sm = sm_val/shots
+
+        return average_sm
+
+	stag_mag = []
+	temp = []
+	i = 1
+	print("Post-processing data")
+	with open(sim_object.namevar,'a') as tempfile:
+		tempfile.write("Post-processing data\n")
+	for c in sim_object.ibm_circuits_list:
+		result_dict = sim_object.result_object.get_counts(c)
+		temp.append(staggered_magnetization_process(result_dict, sim_object.shots))
+		if i % (sim_object.steps+1) == 0:
+			stag_mag.append(temp)
+			temp = []
+		i += 1
+
+	if "True" in sim_object.plot_flag:
+		fig, ax = plt.subplots()
+		plt.plot(range(sim_object.steps+1), stag_mag[0])
+		plt.xlabel("Simulation Timestep",fontsize=14)
+		plt.ylabel("Staggered Magnetization",fontsize=14)
+		plt.tight_layout()
+		every_nth = 2
+		for n, label in enumerate(ax.xaxis.get_ticklabels()):
+			if (n+1) % every_nth != 0:
+				label.set_visible(False)
+		every_nth = 2
+		for n, label in enumerate(ax.yaxis.get_ticklabels()):
+			if (n+1) % every_nth != 0:
+				label.set_visible(False)
+		# plt.yticks(np.arange(-1, 1, step=0.2))  # Set label locations.
+		plt.savefig("data/Result.png")
+		plt.close()
+	sim_object.result_out_list.append(stag_mag[0])
+	existing=glob.glob("data/Staggered Magnetization Data, Qubits={}, num_*.txt".format(sim_object.num_spins))
+	np.savetxt("data/Staggered Magnetization Data, Qubits={}, num_{}.txt".format(sim_object.num_spins,len(existing)+1),stag_mag[0])
+	sim_object.result_matrix=np.stack(sim_object.result_out_list)
+
+	print("Done")
+	with open(sim_object.namevar,'a') as tempfile:
+		tempfile.write("Done\n")
+	return sim_object.result_matrix
