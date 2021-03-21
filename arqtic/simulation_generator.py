@@ -53,6 +53,7 @@ class Simulation_Generator:
         self.observable="system_magnetization"
         self.observable_axis=["z"]
         self.coefficient_list=[]
+        self.h_t_list=[]
 
         from numpy import cos as cos_func
         self.time_func=cos_func
@@ -155,11 +156,14 @@ class Simulation_Generator:
             t = (step + 0.5) * self.delta_t
             if "False" in self.time_dep_flag:
                 psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
+                self.h_t_list.append(psi_ext)
             elif "True" in self.time_dep_flag:
                 if "True" in self.custom_time_dep:
                     psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
+                    self.h_t_list.append(psi_ext)
                 elif "False" in self.custom_time_dep:
                     psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
+                    self.h_t_list.append(psi_ext)
                 else:
                     print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
                     with open(self.namevar,'a') as tempfile:

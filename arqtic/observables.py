@@ -151,12 +151,12 @@ def energy(sim_object):
 	overall_temp = []
 	summed_avg_en=np.zeros(sim_object.steps+1)
 	coefficient_index=0
+        time_dep_coeff_index=0
 	#alright we have one full timeseries worth of circuits for every direction, right after each other
 	#For each timestep, we need to sum coefficient*observable, so make a list of timestep arrays (one for each
 	#direction, then element-wise sum them all
 	for c in sim_object.ibm_circuits_list:
 		temp=[]
-		overall_temp=[]
 		result_dict = sim_object.result_object.get_counts(c)
 		if "Jx" in sim_object.coefficient_list[coefficient_index]:
 			matching_coefficient=sim_object.Jx
@@ -165,9 +165,9 @@ def energy(sim_object):
 		elif "Jz" == sim_object.coefficient_list[coefficient_index]:
 			matching_coefficient=sim_object.Jz
 		elif sim_object.coefficient_list[coefficient_index] in ["hx","hy","hz"]:
-			#need to figure out how to support time dependent h(t) in multiplication here
-			matching_coefficient=0 #placeholder
-		
+
+		    matching_coefficient=sim_object.h_t_list[time_dep_coeff_index] #placeholder
+		    time_dep_coeff_index+=1
 		if sim_object.coefficient_list[coefficient_index] in ["Jx","Jy","Jz"]:
 			for z in range(num_pairs):
 				temp.append(energy_process_twoqub(result_dict, sim_object.shots,z,z+1))
