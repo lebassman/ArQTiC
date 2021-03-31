@@ -119,6 +119,8 @@ class Simulation_Generator:
         self.total_time=int(self.delta_t*self.steps)
         if (self.initial_spins == []):
             self.initial_spins=np.zeros(self.num_spins)
+        else:
+            self.initial_spins = self.initial_spins.split(' ')
 
 
 
@@ -128,12 +130,12 @@ class Simulation_Generator:
         P=Program(self.num_spins)
         for step in range(prop_steps):
             t = (step + 0.5) * self.delta_t
-            if "False" in self.time_dep_flag:
+            if (self.time_dep_flag == "False"):
                 psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
-            elif "True" in self.time_dep_flag:
-                if "True" in self.custom_time_dep:
+            elif (self.time_dep_flag == "True"):
+                if (self.custom_time_dep == "True"):
                     psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
-                elif "False" in self.custom_time_dep:
+                elif (self.custom_time_dep == "False"):
                     psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
                 else:
                     print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
@@ -176,7 +178,7 @@ class Simulation_Generator:
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
                 ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
                 ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
-
+            
             if self.h_ext != 0:
                 P.add_instr(ext_instr_set)
             if self.Jx !=0:
@@ -263,7 +265,7 @@ class Simulation_Generator:
         with open(self.namevar,'a') as tempfile:
             tempfile.write("IBM quantum circuit objects created\n")
 
-        if "True" in self.compile:
+        if (self.compile == "True"):
             provider = qk.IBMQ.get_provider(group='open')
             device = provider.get_backend(self.device)
             #gather fidelity statistics on this device if you want to create a noise model for the simulator
@@ -272,7 +274,7 @@ class Simulation_Generator:
             #noise_model = NoiseModel.from_backend(device)
             #basis_gates = noise_model.basis_gates
 
-            if self.compiler in "ds":
+            if (self.compiler == "ds"):
                 temp=[]
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -284,7 +286,7 @@ class Simulation_Generator:
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits compiled successfully\n")
-            elif self.compiler in "native":
+            elif (self.compiler == "native"):
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Transpiling circuits...\n")
@@ -293,13 +295,13 @@ class Simulation_Generator:
                 print("Circuits transpiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits transpiled successfully\n")
-            elif self.compiler in "tket":
+            elif (self.compiler == "tket"):
                 from pytket.qiskit import qiskit_to_tk
                 from pytket.backends.ibm import IBMQBackend, IBMQEmulatorBackend, AerBackend
                 if self.device == "":
                     tket_backend = AerBackend()
                 else: 
-                    if self.QCQS in ["QC"]:
+                    if (self.QCQS == "QC"):
                         tket_backend = IBMQBackend(self.device)
                     else: 
                         tket_backend = IBMQEmulatorBackend(self.device)
@@ -469,7 +471,7 @@ class Simulation_Generator:
                 self.generate_circuits()
             return self.cirq_circuits_list
 
-    def average_magnetization(self,result: dict, shots: int, qub: int):
+    def local_magnetization(self,result: dict, shots: int, qub: int):
       """Compute average magnetization from results of qk.execution.
       Args:
       - result (dict): a dictionary with the counts for each qubit, see qk.result.result module
@@ -484,6 +486,32 @@ class Simulation_Generator:
         mag += (sum(spin_int) / len(spin_int)) * count
       average_mag = mag / shots
       return average_mag
+    
+    def observe_sigma_z(self,result: dict, shots: int):
+        z_val = 0
+        for spin_str, count in result.items():
+            spin_int = [float(s) for s in spin_str]
+            z_val += (sum(spin_int) / len(spin_int)) * count
+        average_z = z_val/shots
+        return average_z
+   
+    def staggered_magnetization(self,result: dict, shots: int):
+        sm_val = 0
+        for spin_str, count in result.items():
+            spin_int = [1 - 2 * float(s) for s in spin_str]
+            for i in range(len(spin_int)):
+                spin_int[i] = spin_int[i]*(-1)**i
+            sm_val += (sum(spin_int) / len(spin_int)) * count
+        average_sm = sm_val/shots
+        return average_sm
+    
+    def average_magnetization(self,result: dict, shots: int):
+        mag_val = 0
+        for spin_str, count in result.items():
+            spin_int = [1 - 2 * float(s) for s in spin_str]
+            mag_val += (sum(spin_int) / len(spin_int)) * count
+        average_mag = mag_val/shots
+        return average_mag
 
 
     def run_circuits(self):
@@ -506,10 +534,10 @@ class Simulation_Generator:
             #choose the device you would like to run on
             device = provider.get_backend(self.device)
             #gather fidelity statistics on this device if you want to create a noise model for the simulator
-            properties = device.properties()
-            coupling_map = device.configuration().coupling_map
-            noise_model = NoiseModel.from_backend(device)
-            basis_gates = noise_model.basis_gates
+            #properties = device.properties()
+            #coupling_map = device.configuration().coupling_map
+            #noise_model = NoiseModel.from_backend(device)
+            #basis_gates = noise_model.basis_gates
 
             #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
             if self.QCQS in ["QC"]:
@@ -550,46 +578,76 @@ class Simulation_Generator:
             self.result_out_list=[]
             if self.QCQS in ["QS"]:
                 #SIMULATOR POST PROCESSING
-                for j in range(self.num_spins):
-                    avg_mag_sim = []
-                    temp = []
-                    i = 1
-                    print("Post-processing qubit {} data".format(j+1))
+                if (self.observable == "local_magnetization"):
+                    for j in range(self.num_spins):
+                        avg_mag_sim = []
+                        temp = []
+                        i = 1
+                        print("Post-processing qubit {} data".format(j+1))
+                        with open(self.namevar,'a') as tempfile:
+                            tempfile.write("Post-processing qubit {} data\n".format(j+1))
+                        for c in self.ibm_circuits_list:
+                            result_dict = result_noise.get_counts(c)
+                            temp.append(self.local_magnetization(result_dict, self.shots,j))
+                            if i % (self.steps+1) == 0:
+                                avg_mag_sim.append(temp)
+                                temp = []
+                            i += 1
+                        # time_vec=np.linspace(0,total_t,steps)
+                        # time_vec=time_vec*JX/H_BAR
+                        if "True" in self.plot_flag:
+                            fig, ax = plt.subplots()
+                            plt.plot(range(self.steps+1), avg_mag_sim[0])
+                            plt.xlabel("Simulation Timestep",fontsize=14)
+                            plt.ylabel("Average Magnetization",fontsize=14)
+                            plt.tight_layout()
+                            every_nth = 2
+                            for n, label in enumerate(ax.xaxis.get_ticklabels()):
+                                if (n+1) % every_nth != 0:
+                                    label.set_visible(False)
+                            every_nth = 2
+                            for n, label in enumerate(ax.yaxis.get_ticklabels()):
+                                if (n+1) % every_nth != 0:
+                                    label.set_visible(False)
+                            # plt.yticks(np.arange(-1, 1, step=0.2))  # Set label locations.
+                            plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
+                            plt.close()
+                        self.result_out_list.append(avg_mag_sim[0])
+                        existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
+                        np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_sim[0])
+                    self.result_matrix=np.stack(self.result_out_list)
+                    print("Done")
                     with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Post-processing qubit {} data\n".format(j+1))
+                        tempfile.write("Done\n")
+                elif (self.observable == "average_sigma_z"):
+                    avg_zs = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        temp.append(self.average_magnetization(result_dict, self.shots,j))
-                        if i % (self.steps+1) == 0:
-                            avg_mag_sim.append(temp)
-                            temp = []
-                        i += 1
-                    # time_vec=np.linspace(0,total_t,steps)
-                    # time_vec=time_vec*JX/H_BAR
-                    if "True" in self.plot_flag:
-                        fig, ax = plt.subplots()
-                        plt.plot(range(self.steps+1), avg_mag_sim[0])
-                        plt.xlabel("Simulation Timestep",fontsize=14)
-                        plt.ylabel("Average Magnetization",fontsize=14)
-                        plt.tight_layout()
-                        every_nth = 2
-                        for n, label in enumerate(ax.xaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        every_nth = 2
-                        for n, label in enumerate(ax.yaxis.get_ticklabels()):
-                            if (n+1) % every_nth != 0:
-                                label.set_visible(False)
-                        # plt.yticks(np.arange(-1, 1, step=0.2))  # Set label locations.
-                        plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
-                        plt.close()
-                    self.result_out_list.append(avg_mag_sim[0])
-                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
-                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_sim[0])
-                self.result_matrix=np.stack(self.result_out_list)
-                print("Done")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Done\n")
+                        avg_zs.append(self.observe_sigma_z(result_dict, self.shots))
+                elif (self.observable == "staggered_magnetization"):
+                    avg_sm = []
+                    for c in self.ibm_circuits_list:
+                        result_dict = result_noise.get_counts(c)
+                        avg_sm.append(self.staggered_magnetization(result_dict, self.shots))
+                    #plt.plot.range(self.steps+1), avg_zs[0])
+                    #plt.xlabel("Simulation Timestep",fontsize=14)
+                    #plt.ylabel("Order Parameter",fontsize=14)  
+                    #plt.savefig("data/order_param.png")
+                    #plt.close()
+                    self.result_out_list.append(avg_sm)
+                    self.result_matrix=avg_sm
+                elif (self.observable == "average_magnetization"):
+                    avg_mag = []
+                    for c in self.ibm_circuits_list:
+                        result_dict = result_noise.get_counts(c)
+                        avg_mag.append(self.average_magnetization(result_dict, self.shots))
+                    #plt.plot.range(self.steps+1), avg_zs[0])
+                    #plt.xlabel("Simulation Timestep",fontsize=14)
+                    #plt.ylabel("Order Parameter",fontsize=14)  
+                    #plt.savefig("data/order_param.png")
+                    #plt.close()
+                    self.result_out_list.append(avg_mag)
+                    self.result_matrix=avg_mag
 
             elif self.QCQS in ["QC"]:
                 #QUANTUM COMPUTER POST PROCESSING
@@ -603,7 +661,7 @@ class Simulation_Generator:
                         tempfile.write("Post-processing qubit {} data\n".format(j+1))
                     for c in self.ibm_circuits_list:
                             result_dict = results.get_counts(c)
-                            temp.append(self.average_magnetization(result_dict, self.shots,j))
+                            temp.append(self.local_magnetization(result_dict, self.shots,j))
                             if i % (self.steps+1) == 0:
                                     avg_mag_qc.append(temp)
                                     temp = []
