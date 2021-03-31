@@ -1,6 +1,7 @@
-from arqtic.program import Program
+from arqtic.program import Program, Gate
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
+from arqtic.exceptions import Error
 
 def run_ibm(backend, prog, shots, opt_level=1):
     nqubits = prog.nqubits
@@ -70,6 +71,29 @@ def get_ibm_circuit(backend, prog, transpile=True, opt_level=1, basis_gates = ['
         return ibm_circ
     else:
         return ibm_circuit
+    
+def ibm_circ_to_program(ibm_circ):
+    N = ibm_circ.num_qubits
+    prog = Program(N)
+    #convert IBM circuit into a program
+    instr_list=ibm_circ.data
+    for instr in instr_list:
+        name = instr[0].name
+        if name == 'h':
+            prog.add_gate(Gate('H', [instr[1][0].index])
+        elif name == 'sx':
+            prog.add_gate(Gate('SX', [instr[1][0].index])
+        elif name == "rx":
+            prog.add_gate(Gate('RX', [instr[1][0].index], angles=[instr[0].params[0]])
+        elif name == "ry":
+            prog.add_gate(Gate('RY', [instr[1][0].index], angles=[instr[0].params[0]])
+        elif name == "rz":
+            prog.add_gate(Gate('RZ', [instr[1][0].index], angles=[instr[0].params[0]])
+        elif name == "cx":
+            prog.add_gate(Gate('CNOT', [instr[1][0].index, instr[1][1].index])
+        else: 
+            raise Error(f'Unrecognized instruction: {name}')  
+    return prog
     
 def add_prog_to_ibm_circuit(backend, prog, ibm_circuit, transpile=True, opt_level=1, basis_gates = ['cx', 'u1', 'u2', 'u3']):
     for gate in prog.gates:

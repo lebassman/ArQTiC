@@ -2,6 +2,8 @@
 import numpy as np
 from arqtic.program import Program, Gate
 from arqtic.ds_compiler import ds_compile
+from arqtic.qite import make_QITE_circ
+from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 import os
 
 #Create data directory
@@ -23,10 +25,9 @@ class Simulation_Generator:
         self.namevar=str(completename)
         with open(self.namevar,'w') as tempfile:
             tempfile.write("***ArQTiC Session Log File***\n\n")
-        #self.H_BAR = 0.658212    # eV*fs
-        self.H_BAR = 1
 
         #Default Parameters
+        self.H_BAR = 1
         self.Jx=self.Jy=self.Jz=self.h_ext=0
         self.ext_dir="Z"
         self.num_spins=2
@@ -37,16 +38,17 @@ class Simulation_Generator:
         self.QCQS="QS"
         self.shots=1024
         self.noise_choice="False"
-        self.device=""
+        self.device="ibmq_qasm_simulator"
         self.plot_flag="True"
         self.freq=0
         self.time_dep_flag="False"
         self.custom_time_dep="False"
         self.programs_list=[]
-        self.backend=""
+        self.backend="ibm"
         self.ibm_circuits_list=[]
         self.rigetti_circuits_list=[]
         self.cirq_circuits_list=[]
+        self.qite_energies = []
         self.compile="False"
         self.compiler="native"
         self.observable="system_magnetization"
@@ -67,6 +69,9 @@ class Simulation_Generator:
                 self.h_ext=float(value)
             elif "*ext_dir" in data[i]:
                 self.ext_dir=value
+            elif "*h_bar" in data[i]:
+                if (value == "eVfs"):
+                    self.H_BAR = 0.658212  # eV*fs
             elif "*initial_spins" in data[i]:
                 self.initial_spins=value
             elif "*delta_t" in data[i]:
@@ -187,39 +192,63 @@ class Simulation_Generator:
                 P.add_instr(YY_instr_set)
             if self.Jz !=0:
                 P.add_instr(ZZ_instr_set)
-        if "x" in self.measure_dir:
-            for q in range(self.num_qubits):
-                measure_set.append(Gate('H',[q]))
-            P.add_instr(measure_set)
-        elif "y" in self.measure_dir:
-            for q in range(self.num_qubits):
-                measure_set.append(Gate('RX',[q],angles=[-np.pi/2]))
-            P.add_instr(measure_set)
         return P
 
     def generate_programs(self):
         programs = []
         #create programs for real_time evolution
         if (self.real_time == "True"):
+            #inital spin preparation program
+            init_prog = Program(self.nspins)
+            index=0
+            for q in self.initial_spins:
+                if int(q)==1:
+                    init_prog.append(Gate('X', [index])
+                    index+=1
+                else: index+=1
+                                     
+            #measurement preparation program
+            meas_prog = Program(self.nspins)
+            if "x" in self.measure_dir:
+                for q in range(self.num_qubits):
+                    meas_prog.append(Gate('H',[q]))
+            elif "y" in self.measure_dir:
+                for q in range(self.num_qubits):
+                    meas_prog.append(Gate('RX',[q],angles=[-np.pi/2]))
+                                     
+            #total program
             for j in range(0, self.steps+1):
                 print("Generating timestep {} program".format(j))
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
-                programs.append(self.heisenberg_evolution_program(evolution_time))
+                evol_prog = self.heisenberg_evolution_program(evolution_time))
+                total_prog = Program(self.nspins)
+                total_prog.append_program(init_prog)
+                total_prog.append(evol_prog)
+                total_prog.append(meas_prog)
+                programs.append(total_prog)
             self.programs_list=programs
+            
+            #convert to backend specific circuits if one is requested    
+            if self.backend in "ibm":
+                self.generate_ibm()
+            if self.backend in "rigetti":
+                self.generate_rigetti()
+            if self.backend in "cirq":
+                self.generate_cirq()
+        
         #create programs for imaginary time evolution
         else:
-            from QITE import make_QITE_circ
-            qcirc, energies = make_QITE_circ(self, qubits, beta, dbeta, domain, psi0, backend, regularizer)
-            
-        #convert to backend specific circuits if one is requested    
-        if self.backend in "ibm":
-            self.generate_ibm()
-        if self.backend in "rigetti":
-            self.generate_rigetti()
-        if self.backend in "cirq":
-            self.generate_cirq()
+            qite_circ, energies = make_QITE_circ()
+            self.qite_energies = energies
+            self.ibm_circuits_list = qite_circ
+            if self.backend in "rigetti":
+                self.programs_list = [ibm_circ_to_program(ibm_circ)]
+                self.generate_rigetti()
+            if self.backend in "cirq":
+                self.programs_list = [ibm_circ_to_program(ibm_circ)]
+                self.generate_cirq()
 
 
     def generate_ibm(self):
@@ -234,33 +263,18 @@ class Simulation_Generator:
         from qiskit.providers.aer.noise import NoiseModel
         from qiskit.circuit import quantumcircuit
         from qiskit.circuit import Instruction
-        self.qr=qk.QuantumRegister(self.num_spins, 'q')
-        self.cr=qk.ClassicalRegister(self.num_spins, 'c')
 
         print("Creating IBM quantum circuit objects...")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("Creating IBM quantum circuit objects...\n")
         name=0
+        q_regs = qk.QuantumRegister(self.num_spins, 'q')
+        c_regs = qk.ClassicalRegister(self.num_spins, 'c')
+        backend = self.device
         for program in self.programs_list:
-            propcirc = qk.QuantumCircuit(self.qr, self.cr)
-            index=0
-            for flip in self.initial_spins:
-                if int(flip)==1:
-                    propcirc.x(self.qr[index])
-                    index+=1
-                else: index+=1
-            propcirc.barrier()
-            for gate in program.gates:
-                if "H" in gate.name:
-                    propcirc.h(gate.qubits[0])
-                elif "RZ" in gate.name:
-                    propcirc.rz(gate.angles[0],gate.qubits[0])
-                elif "RX" in gate.name:
-                    propcirc.rx(gate.angles[0],gate.qubits[0])
-                elif "CNOT" in gate.name:
-                    propcirc.cx(gate.qubits[0],gate.qubits[1])
-            propcirc.measure(self.qr,self.cr)
-            self.ibm_circuits_list.append(propcirc)
+            ibm_circ = get_ibm_circuit(backend, program, transpile=True, opt_level=1, basis_gates = ['cx', 'u1', 'u2', 'u3'])
+            ibm_circ.measure(q_regs, c_regs)
+            self.ibm_circuits_list.append(ibm_circ)
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:
             tempfile.write("IBM quantum circuit objects created\n")
@@ -269,24 +283,12 @@ class Simulation_Generator:
             provider = qk.IBMQ.get_provider(group='open')
             device = provider.get_backend(self.device)
             #gather fidelity statistics on this device if you want to create a noise model for the simulator
-            #properties = device.properties()
-            #coupling_map = device.configuration().coupling_map
-            #noise_model = NoiseModel.from_backend(device)
-            #basis_gates = noise_model.basis_gates
+            properties = device.properties()
+            coupling_map = device.configuration().coupling_map
+            noise_model = NoiseModel.from_backend(device)
+            basis_gates = noise_model.basis_gates
 
-            if (self.compiler == "ds"):
-                temp=[]
-                print("Compiling circuits...")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Compiling circuits...\n")
-                for circuit in self.ibm_circuits_list:
-                    compiled=ds_compile(circuit,self.backend)
-                    temp.append(compiled)
-                self.ibm_circuits_list=temp
-                print("Circuits compiled successfully")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Circuits compiled successfully\n")
-            elif (self.compiler == "native"):
+            if (self.compiler == "native"):
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Transpiling circuits...\n")
@@ -357,18 +359,8 @@ class Simulation_Generator:
             else:
                 qc=get_qc(self.device_choice)
             qc.compiler.timeout = 20
-            if self.default_compiler in "ds":
-                temp=[]
-                print("Compiling circuits...")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Compiling circuits...\n")
-                for circuit in self.rigetti_circuits_list:
-                    temp.append(ds_compile(circuit,self.backend,self.shots))
-                self.rigetti_circuits_list=temp
-                print("Circuits compiled successfully")
-                with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Circuits compiled successfully\n")
-            elif self.default_compiler in "native":
+
+            if self.default_compiler in "native":
                 temp=[]
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -486,14 +478,6 @@ class Simulation_Generator:
         mag += (sum(spin_int) / len(spin_int)) * count
       average_mag = mag / shots
       return average_mag
-    
-    def observe_sigma_z(self,result: dict, shots: int):
-        z_val = 0
-        for spin_str, count in result.items():
-            spin_int = [float(s) for s in spin_str]
-            z_val += (sum(spin_int) / len(spin_int)) * count
-        average_z = z_val/shots
-        return average_z
    
     def staggered_magnetization(self,result: dict, shots: int):
         sm_val = 0
