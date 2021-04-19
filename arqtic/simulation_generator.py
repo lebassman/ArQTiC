@@ -1,7 +1,6 @@
 #import necessary libraries
 import numpy as np
 from arqtic.program import Program, Gate
-from arqtic.ds_compiler import ds_compile
 from arqtic.qite import make_QITE_circ
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 import os
@@ -154,35 +153,35 @@ class Simulation_Generator:
             measure_set=[]
             for q in range(self.num_spins):
                 if self.ext_dir in "X":
-                    ext_instr_set.append(Gate('RX', [q], angles=[psi_ext]))
+                    ext_instr_set.append(Gate([q], 'RX', angles=[psi_ext]))
                 elif self.ext_dir in "Y":
-                    ext_instr_set.append(Gate('RY', [q], angles=[psi_ext]))
+                    ext_instr_set.append(Gate([q], 'RY', angles=[psi_ext]))
                 elif self.ext_dir in "Z":
-                    ext_instr_set.append(Gate('RZ', [q], angles=[psi_ext]))
+                    ext_instr_set.append(Gate([q], 'RZ', angles=[psi_ext]))
             psiX=-2.0*(self.Jx)*self.delta_t/self.H_BAR
             psiY=-2.0*(self.Jy)*self.delta_t/self.H_BAR
             psiZ=-2.0*(self.Jz)*self.delta_t/self.H_BAR
 
             for q in range(self.num_spins-1):
-                XX_instr_set.append(Gate('H',[q]))
-                XX_instr_set.append(Gate('H',[q+1]))
-                XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('RZ', [q+1], angles=[psiX]))
-                XX_instr_set.append(Gate('CNOT',[q, q+1]))
-                XX_instr_set.append(Gate('H',[q]))
-                XX_instr_set.append(Gate('H',[q+1]))
+                XX_instr_set.append(Gate([q], 'H'))
+                XX_instr_set.append(Gate([q+1], 'H'))
+                XX_instr_set.append(Gate([q, q+1], 'CNOT'))
+                XX_instr_set.append(Gate([q+1], 'RZ', angles=[psiX]))
+                XX_instr_set.append(Gate([q, q+1], 'CNOT'))
+                XX_instr_set.append(Gate([q], 'H',))
+                XX_instr_set.append(Gate([q+1], 'H',))
 
-                YY_instr_set.append(Gate('RX',[q],angles=[-np.pi/2]))
-                YY_instr_set.append(Gate('RX',[q+1],angles=[-np.pi/2]))
-                YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RZ', [q+1], angles=[psiY]))
-                YY_instr_set.append(Gate('CNOT',[q, q+1]))
-                YY_instr_set.append(Gate('RX',[q],angles=[np.pi/2]))
-                YY_instr_set.append(Gate('RX',[q+1],angles=[np.pi/2]))
+                YY_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
+                YY_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
+                YY_instr_set.append(Gate([q, q+1],'CNOT'))
+                YY_instr_set.append(Gate([q+1], 'RZ', angles=[psiY]))
+                YY_instr_set.append(Gate([q, q+1], 'CNOT'))
+                YY_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
+                YY_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
 
-                ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
-                ZZ_instr_set.append(Gate('RZ', [q+1], angles=[psiZ]))
-                ZZ_instr_set.append(Gate('CNOT',[q, q+1]))
+                ZZ_instr_set.append(Gate([q, q+1], 'CNOT'))
+                ZZ_instr_set.append(Gate([q+1], 'RZ', angles=[psiZ]))
+                ZZ_instr_set.append(Gate([q, q+1], 'CNOT'))
             
             if self.h_ext != 0:
                 P.add_instr(ext_instr_set)
@@ -203,18 +202,19 @@ class Simulation_Generator:
             index=0
             for q in self.initial_spins:
                 if int(q)==1:
-                    init_prog.append(Gate('X', [index])
+                    init_prog.append(Gate([index], 'X'))
                     index+=1
-                else: index+=1
+                else: 
+                    index+=1
                                      
             #measurement preparation program
             meas_prog = Program(self.nspins)
             if "x" in self.measure_dir:
                 for q in range(self.num_qubits):
-                    meas_prog.append(Gate('H',[q]))
+                    meas_prog.append(Gate([q],'H',))
             elif "y" in self.measure_dir:
                 for q in range(self.num_qubits):
-                    meas_prog.append(Gate('RX',[q],angles=[-np.pi/2]))
+                    meas_prog.append(Gate([q],'RX',angles=[-np.pi/2]))
                                      
             #total program
             for j in range(0, self.steps+1):
@@ -222,34 +222,28 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
-                evol_prog = self.heisenberg_evolution_program(evolution_time))
+                evol_prog = self.heisenberg_evolution_program(evolution_time)
                 total_prog = Program(self.nspins)
                 total_prog.append_program(init_prog)
                 total_prog.append(evol_prog)
                 total_prog.append(meas_prog)
                 programs.append(total_prog)
             self.programs_list=programs
-            
-            #convert to backend specific circuits if one is requested    
-            if self.backend in "ibm":
-                self.generate_ibm()
-            if self.backend in "rigetti":
-                self.generate_rigetti()
-            if self.backend in "cirq":
-                self.generate_cirq()
+
         
         #create programs for imaginary time evolution
         else:
-            qite_circ, energies = make_QITE_circ()
+            qite_program, energies = make_QITE_circ(self)
             self.qite_energies = energies
-            self.ibm_circuits_list = qite_circ
-            if self.backend in "rigetti":
-                self.programs_list = [ibm_circ_to_program(ibm_circ)]
-                self.generate_rigetti()
-            if self.backend in "cirq":
-                self.programs_list = [ibm_circ_to_program(ibm_circ)]
-                self.generate_cirq()
+            self.programs_list.append(qite_program)
 
+        #convert to backend specific circuits if one is requested    
+        if self.backend in "ibm":
+            self.generate_ibm()
+        if self.backend in "rigetti":
+            self.generate_rigetti()
+        if self.backend in "cirq":
+            self.generate_cirq()
 
     def generate_ibm(self):
         self.ibm_circuits_list=[]
@@ -272,8 +266,8 @@ class Simulation_Generator:
         c_regs = qk.ClassicalRegister(self.num_spins, 'c')
         backend = self.device
         for program in self.programs_list:
-            ibm_circ = get_ibm_circuit(backend, program, transpile=True, opt_level=1, basis_gates = ['cx', 'u1', 'u2', 'u3'])
-            ibm_circ.measure(q_regs, c_regs)
+            ibm_circ = get_ibm_circuit(backend, program)
+            #ibm_circ.measure(q_regs, c_regs)
             self.ibm_circuits_list.append(ibm_circ)
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:

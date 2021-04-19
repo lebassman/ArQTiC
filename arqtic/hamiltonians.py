@@ -95,13 +95,13 @@ class Ising_Hamiltonian:
             instr_set1 = []
             instr_set2 = []
             for q in range(0, self.nspins):
-                instr_set1.append(Gate('H', [q]))
-                instr_set1.append(Gate('RZ', [q], angles=[(-2.0*self.ext_mag_vec[0]*delta_t/H_BAR)]))
-                instr_set1.append(Gate('H',[q]))
+                instr_set1.append(Gate([q], 'H'))
+                instr_set1.append(Gate([q], 'RZ', angles=[(-2.0*self.ext_mag_vec[0]*delta_t/H_BAR)]))
+                instr_set1.append(Gate([q],'H'))
             for q in range(0, self.nspins-1):
-                instr_set2.append(Gate('CNOT',[q, q+1]))
-                instr_set2.append(Gate('RZ', [q+1], angles=[-2.0*self.exchange_coeff*delta_t/H_BAR]))
-                instr_set2.append(Gate('CNOT', [q, q+1]))
+                instr_set2.append(Gate([q, q+1], 'CNOT'))
+                instr_set2.append(Gate([q+1],'RZ', angles=[-2.0*self.exchange_coeff*delta_t/H_BAR]))
+                instr_set2.append(Gate([q, q+1], 'CNOT'))
             p.add_instr(instr_set1)
             p.add_instr(instr_set2)
         return p

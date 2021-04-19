@@ -39,34 +39,43 @@ gate_matrix_dict = {
 }
 
 class Gate: 
-    def __init__(self, name, qubits, angles=[]):
+    def __init__(self, qubits, name = "", angles=[], unitary=[]):
         self.name = name
         self. angles = angles
         self.qubits = qubits
+        self.unitary = unitary
 
     def matrix(self):
-        if self.name in gate_matrix_dict:
-            return gate_matrix_dict[self.name]
-        elif (self.name == 'RX'):
-            return RX(self.angles[0])
-        elif (self.name == 'RY'):
-            return RY(self.angles[0])
-        elif (self.name == 'RZ'):
-            return RZ(self.angles[0])
-        else:
-            print("Error: ", self.name, " is not a known gate name!")
-            exit()
+        if (self.name != ""):
+            if self.name in gate_matrix_dict:
+                return gate_matrix_dict[self.name]
+            elif (self.name == 'RX'):
+                return RX(self.angles[0])
+            elif (self.name == 'RY'):
+                return RY(self.angles[0])
+            elif (self.name == 'RZ'):
+                return RZ(self.angles[0])
+            else:
+                print("Error: ", self.name, " is not a known gate name!")
+                exit()
+        if (self.unitary != []):
+            return self.unitary
+         
 
     def gate_from_Pauli(self, pauli):
         self.name = pauli.name
         self.qubits = pauli.qubit
         self.angles = []
+        self.unitary = []
 
     def print_gate(self):
-        if (self.angles != []):
-            print(self.name,"(",self.angles[0],")",self.qubits) 
+        if (self.name != ""):
+            if (self.angles != []):
+                print(self.name,"(",self.angles[0],")",self.qubits) 
+            else: 
+                print(self.name,self.qubits)
         else: 
-            print(self.name,self.qubits)  
+            print(self.unitary,self.qubits)
 
 class Pauli: 
     def __init__(self, name, qubit):
@@ -221,26 +230,3 @@ def random_bitstring(nbits):
         bitstring.append(random.choice([0,1]))
     return bitstring
     
-
-    
-    
-    
-
-
-#J = 0.01183898
-#my_Ising = Ising_Hamiltonian(4, J, [J,0.0,0.0])
-#my_Ising.print_pretty()
-#program = my_Ising.get_Trotter_program(3, 9)
-#program.print_list()
-#program.get_Qcompile_input()
-
-
-
-
-#p = Program(2)
-#gate1 = Gate('RZ',[0], angles=[0.4])
-#gate2 = Gate('CNOT', [0,1])
-#gate3 = Gate('CNOT', [4,5])
-#gate_list = [gate1, gate2]
-#p.add_instr(gate_list)
-#print(p.get_U())
