@@ -3,11 +3,6 @@ from scipy import linalg as la
 import random
 from arqtic.hamiltonians import Ising_Hamiltonian
 
-
-
-#define HBAR
-HBAR = 0.658212 #ev*fs
-
 #define gate  matrices
 X = np.array([[0.0,1.0],[1.0,0.0]])
 Y = np.array([[0,-1.0j],[1.0j,0.0]])
@@ -145,7 +140,7 @@ class Program:
         for q in range(self.nqubits):
             self.gates.append(Gate("H", [q]))
                 
-    def make_hamEvol_prog(self, time_step, dtau, dt, lambda_protocol, ising_ham):
+    def make_hamEvol_prog(self, time_step, dtau, dt, lambda_protocol, ising_ham, HBAR):
         trotter_steps = int(dtau/dt) #number of Trotter-steps per time-step
         theta_z = 2.0*ising_ham.exchange_coeff*dt/HBAR
         for step in range(time_step):
@@ -160,8 +155,7 @@ class Program:
                     self.gates.append(Gate("RZ", [q+1], [theta_z]))
                     self.gates.append(Gate("CNOT", [q,q+1]))
                     
-    def make_td_hamEvol_prog(self, time_step, dt, Jz, e_ph, w_ph):
-        H_BAR = 0.658212    # eV*fs
+    def make_td_hamEvol_prog(self, time_step, dt, Jz, e_ph, w_ph, HBAR):
         theta_z = -2.0*Jz*dt/HBAR
         for step in range(time_step):
             t = (step + 0.5) * dt
@@ -176,9 +170,7 @@ class Program:
                 self.gates.append(Gate("CNOT", [q,q+1]))
 
 
-    def make_tid_hamEvol_prog(self, time_step, dt, Jz, mu_x):
-        H_BAR = 0.658212    # eV*fs
-        #H_BAR = 1.0
+    def make_tid_hamEvol_prog(self, time_step, dt, Jz, mu_x, HBAR):
         theta_z = -2.0*Jz*dt/HBAR
         theta_x = -2.0*mu_x*dt/HBAR
         for step in range(time_step):
@@ -191,9 +183,7 @@ class Program:
                 self.gates.append(Gate("RZ", [q+1], [theta_z]))
                 self.gates.append(Gate("CNOT", [q,q+1]))
 
-    def make_tid_pbc_hamEvol_prog(self, time_step, dt, Jz, mu_x):
-        H_BAR = 0.658212    # eV*fs
-        #H_BAR = 1.0
+    def make_tid_pbc_hamEvol_prog(self, time_step, dt, Jz, mu_x, HBAR):
         theta_z = -2.0*Jz*dt/HBAR
         theta_x = -2.0*mu_x*dt/HBAR
         for step in range(time_step):

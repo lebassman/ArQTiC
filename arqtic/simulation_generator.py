@@ -1,7 +1,7 @@
 #import necessary libraries
 import numpy as np
 from arqtic.program import Program, Gate
-from arqtic.qite import make_QITE_circ
+from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 import os
 
@@ -135,12 +135,12 @@ class Simulation_Generator:
         for step in range(prop_steps):
             t = (step + 0.5) * self.delta_t
             if (self.time_dep_flag == "False"):
-                psi_ext = -2.0 * self.h_ext *self.delta_t / self.H_BAR
+                psi_ext = 2.0 * self.h_ext *self.delta_t / self.H_BAR
             elif (self.time_dep_flag == "True"):
                 if (self.custom_time_dep == "True"):
-                    psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
+                    psi_ext = 2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
                 elif (self.custom_time_dep == "False"):
-                    psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
+                    psi_ext= 2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
                 else:
                     print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
                     with open(self.namevar,'a') as tempfile:
@@ -158,9 +158,9 @@ class Simulation_Generator:
                     ext_instr_set.append(Gate([q], 'RY', angles=[psi_ext]))
                 elif self.ext_dir in "Z":
                     ext_instr_set.append(Gate([q], 'RZ', angles=[psi_ext]))
-            psiX=-2.0*(self.Jx)*self.delta_t/self.H_BAR
-            psiY=-2.0*(self.Jy)*self.delta_t/self.H_BAR
-            psiZ=-2.0*(self.Jz)*self.delta_t/self.H_BAR
+            psiX = 2.0*(self.Jx)*self.delta_t/self.H_BAR
+            psiY = 2.0*(self.Jy)*self.delta_t/self.H_BAR
+            psiZ = 2.0*(self.Jz)*self.delta_t/self.H_BAR
 
             for q in range(self.num_spins-1):
                 XX_instr_set.append(Gate([q], 'H'))
@@ -233,9 +233,10 @@ class Simulation_Generator:
         
         #create programs for imaginary time evolution
         else:
-            qite_program, energies = make_QITE_circ(self)
+            qite_program, energies = make_QITE_program(self)
+            programs.append(qite_program)
             self.qite_energies = energies
-            self.programs_list.append(qite_program)
+            self.programs_list=programs
 
         #convert to backend specific circuits if one is requested    
         if self.backend in "ibm":

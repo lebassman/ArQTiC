@@ -51,25 +51,31 @@ def get_ibm_circuit(backend, prog):
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
     for gate in prog.gates:
+        #reverse qubit order for IBM
+        rev_q = []
+        for q in gate.qubits:
+            rev_q.append(nqubits - q - 1)
+            #rev_q.append(q)
         if (gate.name != ""):
             if (gate.name == "X"):
-                ibm_circuit.x(gate.qubits)
+                ibm_circuit.x(rev_q)
             elif (gate.name == "Y"):
-                ibm_circuit.y(gate.qubits)
+                ibm_circuit.y(rev_q)
             elif (gate.name == "Z"):
-                ibm_circuit.z(gate.qubits)
+                ibm_circuit.z(rev_q)
             elif (gate.name == "H"):
-                ibm_circuit.h(gate.qubits)
+                ibm_circuit.h(rev_q)
             elif (gate.name == "RZ"):
-                ibm_circuit.rz(gate.angles[0], gate.qubits)
+                ibm_circuit.rz(gate.angles[0], rev_q)
             elif (gate.name == "RX"):
-                ibm_circuit.rx(gate.angles[0], gate.qubits)
+                ibm_circuit.rx(gate.angles[0], rev_q)
             elif (gate.name == "CNOT"):
-                ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
+                ibm_circuit.cx(rev_q[0], rev_q[1])
             else:
                 raise Error(f'Unrecognized gate name: {gate.name}') 
         else: 
-            ibm_circuit.unitary(gate.unitary, gate.qubits)
+            #ibm_circuit.unitary(gate.unitary, rev_q)
+            ibm_circuit.unitary(gate.unitary, list(reversed(rev_q)))
     
     return ibm_circuit
     

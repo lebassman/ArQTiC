@@ -1,26 +1,26 @@
 *num_spins
-2
+3
 
 *initial_spins 
-0 0
+0 0 0
 
 *Jz 
-0.5
+1.0
 
 *h_ext
-0.3
+1.0
 
 *ext_dir
 X
 
 *beta
-6.4
+1.0
 
 *delta_beta 
-0.64
+0.1
 
 *domain
-2
+3
 
 *real_time
 False
