@@ -3,7 +3,7 @@ import numpy as np
 from arqtic.program import Program, Gate
 from arqtic.ds_compiler import ds_compile
 import os
-from observables import *
+from arqtic.observables import *
 
 #Create data directory
 current=os.getcwd()
@@ -122,6 +122,21 @@ class Simulation_Generator:
         self.total_time=int(self.delta_t*self.steps)
         if (self.initial_spins == []):
             self.initial_spins=np.zeros(self.num_spins)
+        self.initial_spins=self.initial_spins.split(",")
+        self.flip_vec=np.zeros(self.num_spins)
+        index=0
+        for spin in self.initial_spins:
+            if int(spin)==1:
+                self.flip_vec[index]=1
+                index+=1
+            elif int(spin)==0:
+                self.flip_vec[index]=0
+                index+=1
+            else:
+                print("Invalid spin entered")
+                with open(self.namevar,"a") as tempfile:
+                    tempfile.write("Invalid spin entered\n")
+        
 
 
         if "energy" in self.observable:
@@ -272,7 +287,7 @@ class Simulation_Generator:
         for program in self.programs_list:
             propcirc = qk.QuantumCircuit(qr, cr)
             index=0
-            for flip in self.initial_spins:
+            for flip in self.flip_vec:
                 if int(flip)==1:
                     propcirc.x(qr[index])
                     index+=1
@@ -568,11 +583,11 @@ class Simulation_Generator:
             #Post Processing
             self.result_out_list=[]
             if "system_magnetization" in self.observable:
-                result_out_list.append(system_magnetization(self))
+                self.result_out_list.append(system_magnetization(self))
             elif "individual_magnetization" in self.observable:
-                result_out_list.append(individual_magnetization(self)) 
+                self.result_out_list.append(individual_magnetization(self)) 
             elif "energy" in self.observable:
-                result_out_list.append(energy(self))
+                self.result_out_list.append(energy(self))
 
 
 ###########   Need to update this to the new external observables post-processing scheme started in the IBM section

@@ -9,7 +9,7 @@ ibm
 0.01183898
 
 *initial_spins 
-0 0 0
+0,0,0
 
 
 *delta_t 
