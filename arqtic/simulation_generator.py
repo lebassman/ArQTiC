@@ -177,7 +177,7 @@ class Simulation_Generator:
                     psi_ext = -2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
                     self.h_t_list.append(psi_ext)
                 elif "False" in self.custom_time_dep:
-                    psi_ext=-2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
+                    psi_ext=-2.0*self.h_ext*np.cos(2*np.pi*self.freq*t)*self.delta_t/self.H_BAR
                     self.h_t_list.append(psi_ext)
                 else:
                     print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
