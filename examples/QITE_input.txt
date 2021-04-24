@@ -17,7 +17,7 @@ X
 1.0
 
 *delta_beta 
-0.1
+0.05
 
 *domain
 3
