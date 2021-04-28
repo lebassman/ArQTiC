@@ -3,6 +3,7 @@ import numpy as np
 from arqtic.program import Program, Gate
 from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
+from arqtic.ds_compiler import get_constant_depth_program
 import os
 
 #Create data directory
@@ -305,15 +306,22 @@ class Simulation_Generator:
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
+                circs = []
                 for circuit in self.ibm_circuit_list:
                     tket_circ = qiskit_to_tk(c)
                     tket_backend.compile_circuit(tket_circ)
-                    temp.append(tket_circ)
-                self.ibm_circuits_list=temp
+                    circs.append(tket_circ)
+                self.ibm_circuits_list=circs
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits compiled successfully\n")
-
+            elif (self.compiler == "constant-depth"):
+                circs = []
+                for circuit in self.ibm_circuit_list:
+                    cd_circ = get_constant_depth_ibm_circuit(program, N)
+                    circs.append(cd_circ)
+                self.ibm_circuits_list=circs
+             
 
 
     def generate_rigetti(self):
@@ -389,6 +397,7 @@ class Simulation_Generator:
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits compiled successfully\n")
+
 
         print("Pyquil program list created successfully")
         with open(self.namevar,'a') as tempfile:
