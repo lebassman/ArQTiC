@@ -22,6 +22,12 @@ def RY(theta):
 def RZ(theta):
     return np.array([[np.exp(-1.0j*theta/2.0), 0], [0, np.exp(1.0j*theta/2.0)]])
 
+def U3(angles):
+    theta = angles[0]
+    phi = angles[1]
+    lam = angles[2]
+    return np.array([[np.cos(theta/2.0), -np.exp(1j*lam)*np.sin(theta/2.0)], [np.exp(1j*phi)*np.sin(theta/2.0), -np.exp(1j*(phi+lam))*np.cos(theta/2.0)]])
+
 gate_matrix_dict = {
     "X": X, 
     "Y": Y,
@@ -50,6 +56,8 @@ class Gate:
                 return RY(self.angles[0])
             elif (self.name == 'RZ'):
                 return RZ(self.angles[0])
+            elif (self.name == 'U3'):
+                return U3(self.angles)
             else:
                 print("Error: ", self.name, " is not a known gate name!")
                 exit()

@@ -28,8 +28,10 @@ class Simulation_Generator:
 
         #Default Parameters
         self.H_BAR = 1
-        self.Jx=self.Jy=self.Jz=self.h_ext=0
-        self.ext_dir="Z"
+        self.Jx=self.Jy=self.Jz=[]
+        self.hx=self.hy=self.hz=[]
+        self.td_Jx_func=self.td_Jy_func=self.td_Jz_func=[]
+        self.td_hx_func=self.td_hy_func=self.td_hz_func=[]
         self.num_spins=2
         self.initial_spins=[]
         self.delta_t=1
@@ -51,29 +53,43 @@ class Simulation_Generator:
         self.qite_energies = []
         self.compile="False"
         self.compiler="native"
+        self.constant_depth="False"
         self.observable="system_magnetization"
         self.measure_dir="z"
 
-        from numpy import cos as cos_func
-        self.time_func=cos_func
+        self.time_func=np.cos
 
         for i in range(len(data)-1):
             value=data[i+1].strip()
             if "*Jx" in data[i]:
-                self.Jx=float(value)
+                self.Jx=value.split(' ')
             elif "*Jy" in data[i]:
-                self.Jy=float(value)
+                self.Jy=value.split(' ')
             elif "*Jz" in data[i]:
-                self.Jz=float(value)
-            elif "*h_ext" in data[i]:
-                self.h_ext=float(value)
-            elif "*ext_dir" in data[i]:
-                self.ext_dir=value
-            elif "*h_bar" in data[i]:
+                self.Jz=value.split(' ')
+            elif "*hx" in data[i]:
+                self.hx=value.split(' ')
+            elif "*hy" in data[i]:
+                self.hy=value.split(' ')
+            elif "*hz" in data[i]:
+                self.hz=value.split(' ')
+            elif "*td_Jx_func" in data[i]:
+                self.td_Jx_func=value.split(' ')
+            elif "*td_Jy_func" in data[i]:
+                self.td_Jy_func=value.split(' ')
+            elif "*td_Jz_func" in data[i]:
+                self.td_Jz_func=value.split(' ')
+            elif "*td_hx_func" in data[i]:
+                self.td_hx_func=value.split(' ')
+            elif "*td_hy_func" in data[i]:
+                self.td_hy_func=value.split(' ')
+            elif "*td_hz_func" in data[i]:
+                self.td_hz_func=value.split(' ')
+            elif "*hbar" in data[i]:
                 if (value == "eVfs"):
                     self.H_BAR = 0.658212  # eV*fs
             elif "*initial_spins" in data[i]:
-                self.initial_spins=value
+                self.initial_spins=value.split(' ')
             elif "*delta_t" in data[i]:
                 self.delta_t=float(value)
             elif "*steps" in data[i]:
@@ -112,6 +128,8 @@ class Simulation_Generator:
                 self.compiler=value
             elif "*compile" in data[i]:
                 self.compile=value
+            elif "*constant_depth" in data[i]:
+                self.constant_depth=value
             elif "*custom_time_dep" in data[i]:
                 self.custom_time_dep=value
                 if self.custom_time_dep in "True":
@@ -120,102 +138,258 @@ class Simulation_Generator:
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Found an external time dependence function\n")
                     self.time_func=external_func
-
-        self.total_time=int(self.delta_t*self.steps)
+           
+        #format array entries
+        #initial spin state
         if (self.initial_spins == []):
-            self.initial_spins=np.zeros(self.num_spins)
+            self.initial_spins = np.zeros(self.num_spins)
         else:
-            self.initial_spins = self.initial_spins.split(' ')
+            self.initial_spins = np.asarray(self.initial_spins)
+        #coupling parameters
+        if (len(self.Jx) > 0):
+            if (len(self.Jx) == 1):
+                self.Jx = np.full(self.num_spins-1, float(self.Jx[0]))
+            elif (self.Jx[0] == "random"):
+                lower = float(self.Jx[1])
+                upper = float(self.Jx[2])
+                self.Jx = np.random.uniform(lower,upper,self.num_spins-1)
+            else:
+                self.Jx = np.asarray([float(x) for x in self.Jx])
+        if (len(self.Jy) > 0):
+            if (len(self.Jy) == 1):
+                self.Jy = np.full(self.num_spins-1, float(self.Jy[0]))
+            elif (self.Jy[0] == "random"):
+                lower = float(self.Jy[1])
+                upper = float(self.Jy[2])
+                self.Jy = np.random.uniform(lower,upper,self.num_spins-1)
+            else:
+                self.Jy = np.asarray([float(x) for x in self.Jy])
+        if (len(self.Jz) > 0):
+            if (len(self.Jz) == 1):
+                self.Jz = np.full(self.num_spins-1, float(self.Jz[0]))
+            elif (self.Jz[0] == "random"):
+                lower = float(self.Jz[1])
+                upper = float(self.Jz[2])
+                self.Jz = np.random.uniform(lower,upper,self.num_spins-1)
+            else:
+                self.Jz = np.asarray([float(x) for x in self.Jz])
+        #external magnetic field    
+        if (len(self.hx) > 0):
+            if (len(self.hx) == 1):
+                self.hx = np.full(self.num_spins, float(self.hx[0]))
+            elif (self.hx[0] == "random"):
+                lower = float(self.hx[1])
+                upper = float(self.hx[2])
+                self.hx = np.random.uniform(lower,upper,self.num_spins)
+            else:
+                self.hx = np.asarray([float(x) for x in self.hx])
+        if (len(self.hy) > 0):
+            if (len(self.hy) == 1):
+                self.hy = np.full(self.num_spins, float(self.hy[0]))
+            elif (self.hy[0] == "random"):
+                lower = float(self.hy[1])
+                upper = float(self.hy[2])
+                self.hy = np.random.uniform(lower,upper,self.num_spins)
+            else:
+                self.hy = np.asarray([float(x) for x in self.hy])
+        if (len(self.hz) > 0):
+            if (len(self.hz) == 1):
+                self.hz = np.full(self.num_spins, float(self.hz[0]))
+            elif (self.hz[0] == "random"):
+                lower = float(self.hz[1])
+                upper = float(self.hz[2])
+                self.hz = np.random.uniform(lower,upper,self.num_spins)
+            else:
+                self.hz = np.asarray([float(x) for x in self.hz])
+       
+        #time dependence
+        if (self.time_dep_flag == "True"):
+            if(len(self.td_Jx_func) > 0):
+                func = []
+                func.append(self.td_Jx_func[0]) #time-dependent function name
+                for p in range(len(self.td_Jx_func) - 1):
+                    func.append(float(self.td_Jx_func[1+p]))
+                self.td_Jx_func = func
+            if(len(self.td_Jy_func) > 0):
+                func = []
+                func.append(self.td_Jy_func[0]) #time-dependent function name
+                for p in range(len(self.td_Jy_func) - 1):
+                    func.append(float(self.td_Jy_func[1+p]))
+                self.td_Jy_func = func
+            if(len(self.td_Jz_func) > 0):
+                func = []
+                func.append(self.td_Jz_func[0]) #time-dependent function name
+                for p in range(len(self.td_Jz_func) - 1):
+                    func.append(float(self.td_Jz_func[1+p]))
+                self.td_Jz_func = func
+            if(len(self.td_hx_func) > 0):
+                func = []
+                func.append(self.td_hx_func[0]) #time-dependent function name
+                for p in range(len(self.td_hx_func) - 1):
+                    func.append(float(self.td_hx_func[1+p]))
+                self.td_hx_func = func
+            if(len(self.td_hy_func) > 0):
+                func = []
+                func.append(self.td_hy_func[0]) #time-dependent function name
+                for p in range(len(self.td_hy_func) - 1):
+                    func.append(float(self.td_hy_func[1+p]))
+                self.td_hy_func = func
+            if(len(self.td_hz_func) > 0):
+                func = []
+                func.append(self.td_hz_func[0]) #time-dependent function name
+                for p in range(len(self.td_hz_func) - 1):
+                    func.append(float(self.td_hz_func[1+p]))
+                self.td_hz_func = func
 
-
-
-    def heisenberg_evolution_program(self,evol_time): #creates evolution circuit in local program
-    #Initial flipped spins are not implemented in this function due to the need for "barrier". Need to do that outside of this.
-        prop_steps = int(evol_time / self.delta_t)  # number of propagation steps
-        P=Program(self.num_spins)
+    def heisenberg_evolution_program(self, evol_time): #creates evolution program
+        prop_steps = int(evol_time/self.delta_t)
+        P = Program(self.num_spins)
+        if (len(self.Jx) > 0):
+            theta_Jx = 2.0*self.Jx*self.delta_t/self.H_BAR
+        if (len(self.Jy) > 0):
+            theta_Jy = 2.0*self.Jy*self.delta_t/self.H_BAR
+        if (len(self.Jz) > 0):
+            theta_Jz = 2.0*self.Jz*self.delta_t/self.H_BAR
+        if (len(self.hx) > 0):
+            theta_hx = 2.0*self.hx*self.delta_t/self.H_BAR
+        if (len(self.hy) > 0):
+            theta_hy = 2.0*self.hy*self.delta_t/self.H_BAR
+        if (len(self.hz) > 0):
+            theta_hz = 2.0*self.hz*self.delta_t/self.H_BAR
+        
         for step in range(prop_steps):
-            t = (step + 0.5) * self.delta_t
-            if (self.time_dep_flag == "False"):
-                psi_ext = 2.0 * self.h_ext *self.delta_t / self.H_BAR
-            elif (self.time_dep_flag == "True"):
+            #for time-dependent Hamiltonians
+            if (self.time_dep_flag == "True"):
+                t = (step + 0.5) * self.delta_t
                 if (self.custom_time_dep == "True"):
-                    psi_ext = 2.0 * self.h_ext * self.time_func(t)*self.delta_t / self.H_BAR
-                elif (self.custom_time_dep == "False"):
-                    psi_ext= 2.0*self.h_ext*np.cos(self.freq*t)*self.delta_t/self.H_BAR
+                    ###needs to be implemented###
+                    raise Error(f'Custom time-dependence not yet implemented. Use sin or cos.')
                 else:
-                    print("Invalid selection for custom_time_dep parameter. Please enter True or False.")
-                    with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Invalid selection for custom_time_dep parameter. Please enter True or False.\n")
-                    break
-            ext_instr_set=[]
-            XX_instr_set=[]
-            YY_instr_set=[]
-            ZZ_instr_set=[]
-            measure_set=[]
-            for q in range(self.num_spins):
-                if self.ext_dir in "X":
-                    ext_instr_set.append(Gate([q], 'RX', angles=[psi_ext]))
-                elif self.ext_dir in "Y":
-                    ext_instr_set.append(Gate([q], 'RY', angles=[psi_ext]))
-                elif self.ext_dir in "Z":
-                    ext_instr_set.append(Gate([q], 'RZ', angles=[psi_ext]))
-            psiX = 2.0*(self.Jx)*self.delta_t/self.H_BAR
-            psiY = 2.0*(self.Jy)*self.delta_t/self.H_BAR
-            psiZ = 2.0*(self.Jz)*self.delta_t/self.H_BAR
+                    if (len(self.td_Jx_func) > 0):
+                        func_name = self.td_Jx_func[0]
+                        freq = self.td_Jx_func[1]
+                        if (func_name == "sin"):
+                            theta_Jx = 2.0*self.Jx*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_Jx = 2.0*self.Jx*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                    if (len(self.td_Jy_func) > 0):
+                        func_name = self.td_Jy_func[0]
+                        freq = self.td_Jy_func[1]
+                        if (func_name == "sin"):
+                            theta_Jy = 2.0*self.Jy*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_Jy = 2.0*self.Jy*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                    if (len(self.td_Jz_func) > 0):
+                        func_name = self.td_Jz_func[0]
+                        freq = self.td_Jz_func[1]
+                        if (func_name == "sin"):
+                            theta_Jz = 2.0*self.Jz*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_Jz = 2.0*self.Jz*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                    if (len(self.td_hx_func) > 0):
+                        func_name = self.td_hx_func[0]
+                        freq = self.td_hx_func[1]
+                        if (func_name == "sin"):
+                            theta_hx = 2.0*self.hx*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_hx = 2.0*self.hx*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                    if (len(self.td_hy_func) > 0):
+                        func_name = self.td_hy_func[0]
+                        freq = self.td_hy_func[1]
+                        if (func_name == "sin"):
+                            theta_hy = 2.0*self.hy*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_hy = 2.0*self.hy*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                    if (len(self.td_hz_func) > 0):
+                        func_name = self.td_hz_func[0]
+                        freq = self.td_hz_func[1]
+                        if (func_name == "sin"):
+                            theta_hz = 2.0*self.hz*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        elif (func_name == "cos"):
+                            theta_hz = 2.0*self.hz*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
+                        else: 
+                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
 
-            for q in range(self.num_spins-1):
-                XX_instr_set.append(Gate([q], 'H'))
-                XX_instr_set.append(Gate([q+1], 'H'))
-                XX_instr_set.append(Gate([q, q+1], 'CNOT'))
-                XX_instr_set.append(Gate([q+1], 'RZ', angles=[psiX]))
-                XX_instr_set.append(Gate([q, q+1], 'CNOT'))
-                XX_instr_set.append(Gate([q], 'H',))
-                XX_instr_set.append(Gate([q+1], 'H',))
-
-                YY_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
-                YY_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
-                YY_instr_set.append(Gate([q, q+1],'CNOT'))
-                YY_instr_set.append(Gate([q+1], 'RZ', angles=[psiY]))
-                YY_instr_set.append(Gate([q, q+1], 'CNOT'))
-                YY_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
-                YY_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
-
-                ZZ_instr_set.append(Gate([q, q+1], 'CNOT'))
-                ZZ_instr_set.append(Gate([q+1], 'RZ', angles=[psiZ]))
-                ZZ_instr_set.append(Gate([q, q+1], 'CNOT'))
-            
-            if self.h_ext != 0:
-                P.add_instr(ext_instr_set)
-            if self.Jx !=0:
-                P.add_instr(XX_instr_set)
-            if self.Jy !=0:
-                P.add_instr(YY_instr_set)
-            if self.Jz !=0:
-                P.add_instr(ZZ_instr_set)
+            #add coupling term instruction sets
+            if (len(self.Jx) >0):
+                for q in range(self.num_spins-1):
+                    Jx_instr_set=[]
+                    Jx_instr_set.append(Gate([q], 'H'))
+                    Jx_instr_set.append(Gate([q+1], 'H'))
+                    Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
+                    Jx_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jx[q]]))
+                    Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
+                    Jx_instr_set.append(Gate([q], 'H',))
+                    Jx_instr_set.append(Gate([q+1], 'H',))
+                    P.add_instr(Jx_instr_set)
+            if (len(self.Jy) >0):
+                for q in range(self.num_spins-1):
+                    Jy_instr_set=[]
+                    Jy_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
+                    Jy_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
+                    Jy_instr_set.append(Gate([q, q+1],'CNOT'))
+                    Jy_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jy[q]]))
+                    Jy_instr_set.append(Gate([q, q+1], 'CNOT'))
+                    Jy_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
+                    Jy_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
+                    P.add_instr(Jy_instr_set)
+            if (len(self.Jz) >0):
+                for q in range(self.num_spins-1):
+                    Jz_instr_set=[]
+                    Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
+                    Jz_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jz[q]]))
+                    Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
+                    P.add_instr(Jz_instr_set)
+                
+            #add external magnetic field instruction sets    
+            if (len(self.hx) > 0):
+                for q in range(self.num_spins):
+                    hx_instr_set = [Gate([q], 'RX', angles=[theta_hx[q]])]
+                    P.add_instr(hx_instr_set)
+            if (len(self.hy) > 0):
+                for q in range(self.num_spins):
+                    hy_instr_set = [Gate([q], 'RY', angles=[theta_hy[q]])]
+                    P.add_instr(hy_instr_set)
+            if (len(self.hz) > 0):
+                for q in range(self.num_spins):
+                    hz_instr_set = [Gate([q], 'RZ', angles=[theta_hz[q]])]
+                    P.add_instr(hz_instr_set)
+           
         return P
 
     def generate_programs(self):
         programs = []
         #create programs for real_time evolution
         if (self.real_time == "True"):
+            
             #inital spin preparation program
-            init_prog = Program(self.nspins)
+            init_prog = Program(self.num_spins)
             index=0
             for q in self.initial_spins:
                 if int(q)==1:
-                    init_prog.append(Gate([index], 'X'))
+                    init_prog.add_gate(Gate([index], 'X'))
                     index+=1
                 else: 
                     index+=1
                                      
             #measurement preparation program
-            meas_prog = Program(self.nspins)
+            meas_prog = Program(self.num_spins)
             if "x" in self.measure_dir:
-                for q in range(self.num_qubits):
-                    meas_prog.append(Gate([q],'H',))
+                for q in range(self.num_spins):
+                    meas_prog.add_gate(Gate([q],'H',))
             elif "y" in self.measure_dir:
-                for q in range(self.num_qubits):
-                    meas_prog.append(Gate([q],'RX',angles=[-np.pi/2]))
+                for q in range(self.num_spins):
+                    meas_prog.add_gate(Gate([q],'RX',angles=[-np.pi/2]))
                                      
             #total program
             for j in range(0, self.steps+1):
@@ -224,14 +398,15 @@ class Simulation_Generator:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
                 evol_prog = self.heisenberg_evolution_program(evolution_time)
-                total_prog = Program(self.nspins)
+                if (self.constant_depth == "True" and j>0):
+                    evol_prog = get_constant_depth_program(evol_prog, self.num_spins)
+                total_prog = Program(self.num_spins)
                 total_prog.append_program(init_prog)
-                total_prog.append(evol_prog)
-                total_prog.append(meas_prog)
+                total_prog.append_program(evol_prog)
+                total_prog.append_program(meas_prog)
                 programs.append(total_prog)
             self.programs_list=programs
-
-        
+  
         #create programs for imaginary time evolution
         else:
             qite_program, energies = make_QITE_program(self)
@@ -239,6 +414,8 @@ class Simulation_Generator:
             self.qite_energies = energies
             self.programs_list=programs
 
+    def generate_circuits(self): 
+        self.generate_programs()
         #convert to backend specific circuits if one is requested    
         if self.backend in "ibm":
             self.generate_ibm()
@@ -248,8 +425,7 @@ class Simulation_Generator:
             self.generate_cirq()
 
     def generate_ibm(self):
-        self.ibm_circuits_list=[]
-        #convert from local circuits to IBM-specific circuit
+        #generate IBM-specific circuits
         #IBM imports 
         import qiskit as qk
         from qiskit.tools.monitor import job_monitor
@@ -259,6 +435,7 @@ class Simulation_Generator:
         from qiskit.providers.aer.noise import NoiseModel
         from qiskit.circuit import quantumcircuit
         from qiskit.circuit import Instruction
+        
 
         print("Creating IBM quantum circuit objects...")
         with open(self.namevar,'a') as tempfile:
@@ -267,9 +444,9 @@ class Simulation_Generator:
         q_regs = qk.QuantumRegister(self.num_spins, 'q')
         c_regs = qk.ClassicalRegister(self.num_spins, 'c')
         backend = self.device
+        self.ibm_circuits_list=[]
         for program in self.programs_list:
             ibm_circ = get_ibm_circuit(backend, program)
-            #ibm_circ.measure(q_regs, c_regs)
             self.ibm_circuits_list.append(ibm_circ)
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:
@@ -277,13 +454,8 @@ class Simulation_Generator:
 
         if (self.compile == "True"):
             provider = qk.IBMQ.get_provider(group='open')
+            #print(provider.backends())
             device = provider.get_backend(self.device)
-            #gather fidelity statistics on this device if you want to create a noise model for the simulator
-            properties = device.properties()
-            coupling_map = device.configuration().coupling_map
-            noise_model = NoiseModel.from_backend(device)
-            basis_gates = noise_model.basis_gates
-
             if (self.compiler == "native"):
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -315,12 +487,6 @@ class Simulation_Generator:
                 print("Circuits compiled successfully")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits compiled successfully\n")
-            elif (self.compiler == "constant-depth"):
-                circs = []
-                for circuit in self.ibm_circuit_list:
-                    cd_circ = get_constant_depth_ibm_circuit(program, N)
-                    circs.append(cd_circ)
-                self.ibm_circuits_list=circs
              
 
 
@@ -493,7 +659,7 @@ class Simulation_Generator:
         average_sm = sm_val/shots
         return average_sm
     
-    def average_magnetization(self,result: dict, shots: int):
+    def system_magnetization(self,result: dict, shots: int):
         mag_val = 0
         for spin_str, count in result.items():
             spin_int = [1 - 2 * float(s) for s in spin_str]
@@ -515,6 +681,9 @@ class Simulation_Generator:
             from qiskit.providers.aer.noise import NoiseModel
             from qiskit.circuit import quantumcircuit
             from qiskit.circuit import Instruction
+            
+            q_regs = qk.QuantumRegister(self.num_spins, 'q')
+            c_regs = qk.ClassicalRegister(self.num_spins, 'c')
             ## Show available backends
             provider = qk.IBMQ.get_provider(group='open')
             provider.backends()
@@ -522,10 +691,21 @@ class Simulation_Generator:
             #choose the device you would like to run on
             device = provider.get_backend(self.device)
             #gather fidelity statistics on this device if you want to create a noise model for the simulator
-            #properties = device.properties()
-            #coupling_map = device.configuration().coupling_map
-            #noise_model = NoiseModel.from_backend(device)
-            #basis_gates = noise_model.basis_gates
+            if (self.device != "ibmq_qasm_simulator"):
+                properties = device.properties()
+                coupling_map = device.configuration().coupling_map
+                noise_model = NoiseModel.from_backend(device)
+                basis_gates = noise_model.basis_gates
+            
+            #add measurements
+            temp = []
+            for circ in self.ibm_circuits_list:
+                circ.measure(q_regs, c_regs)
+                temp.append(circ)
+            self.ibm_circuits_list = temp
+            #compile circuits to run
+            temp = qk.compiler.transpile(self.ibm_circuits_list,backend=device,optimization_level=3)
+            self.ibm_circuits_list = temp
 
             #CHOOSE TO RUN ON QUANTUM COMPUTER OR SIMULATOR
             if self.QCQS in ["QC"]:
@@ -548,7 +728,7 @@ class Simulation_Generator:
                     print("Running noiseless simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noiseless simulator job...\n")
-                        result_noise=execute(self.ibm_circuits_list,simulator,shots=self.shots).result()
+                        result_noise=execute(self.ibm_circuits_list,backend=device,shots=self.shots).result()
                     print("Noiseless simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noiseless simulator job successful\n")
@@ -607,11 +787,6 @@ class Simulation_Generator:
                     print("Done")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Done\n")
-                elif (self.observable == "average_sigma_z"):
-                    avg_zs = []
-                    for c in self.ibm_circuits_list:
-                        result_dict = result_noise.get_counts(c)
-                        avg_zs.append(self.observe_sigma_z(result_dict, self.shots))
                 elif (self.observable == "staggered_magnetization"):
                     avg_sm = []
                     for c in self.ibm_circuits_list:
@@ -624,11 +799,11 @@ class Simulation_Generator:
                     #plt.close()
                     self.result_out_list.append(avg_sm)
                     self.result_matrix=avg_sm
-                elif (self.observable == "average_magnetization"):
+                elif (self.observable == "system_magnetization"):
                     avg_mag = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        avg_mag.append(self.average_magnetization(result_dict, self.shots))
+                        avg_mag.append(self.system_magnetization(result_dict, self.shots))
                     #plt.plot.range(self.steps+1), avg_zs[0])
                     #plt.xlabel("Simulation Timestep",fontsize=14)
                     #plt.ylabel("Order Parameter",fontsize=14)  

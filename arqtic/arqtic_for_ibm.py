@@ -11,9 +11,6 @@ def run_ibm(backend, prog, shots, opt_level=1):
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
     for gate in prog.gates:
-        #print(gate.name)
-        #print(gate.qubits)
-        #print(gate.angles)
         if (gate.name == "X"):
             ibm_circuit.x(gate.qubits)
         if (gate.name == "Y"):
@@ -51,29 +48,31 @@ def get_ibm_circuit(backend, prog):
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
     for gate in prog.gates:
-        #reverse qubit order for IBM
-        rev_q = []
-        for q in gate.qubits:
-            rev_q.append(nqubits - q - 1)
-            #rev_q.append(q)
         if (gate.name != ""):
             if (gate.name == "X"):
-                ibm_circuit.x(rev_q)
+                ibm_circuit.x(gate.qubits)
             elif (gate.name == "Y"):
-                ibm_circuit.y(rev_q)
+                ibm_circuit.y(gate.qubits)
             elif (gate.name == "Z"):
-                ibm_circuit.z(rev_q)
+                ibm_circuit.z(gate.qubits)
             elif (gate.name == "H"):
-                ibm_circuit.h(rev_q)
+                ibm_circuit.h(gate.qubits)
             elif (gate.name == "RZ"):
-                ibm_circuit.rz(gate.angles[0], rev_q)
+                ibm_circuit.rz(gate.angles[0], gate.qubits)
             elif (gate.name == "RX"):
-                ibm_circuit.rx(gate.angles[0], rev_q)
+                ibm_circuit.rx(gate.angles[0], gate.qubits)
+            elif (gate.name == "U3"):
+                ibm_circuit.u3(gate.angles[0][0],gate.angles[0][1],gate.angles[0][2], gate.qubits)
             elif (gate.name == "CNOT"):
-                ibm_circuit.cx(rev_q[0], rev_q[1])
+                ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
             else:
                 raise Error(f'Unrecognized gate name: {gate.name}') 
         else: 
+            #reverse qubit order for IBM
+            rev_q = []
+            for q in gate.qubits:
+                rev_q.append(nqubits - q - 1)
+            #rev_q.append(q)
             #ibm_circuit.unitary(gate.unitary, rev_q)
             ibm_circuit.unitary(gate.unitary, list(reversed(rev_q)))
     
@@ -98,6 +97,8 @@ def ibm_circ_to_program(ibm_circ):
             prog.add_gate(Gate([instr[1][0].index],'RZ', angles=[instr[0].params[0]]))
         elif name == "cx":
             prog.add_gate(Gate([instr[1][0].index, instr[1][1].index], 'CNOT'))
+        elif name == "u3":
+            prog.add_gate(Gate([instr[1][0].index],'U3', angles=[instr[0].params]))
         else: 
             raise Error(f'Unrecognized instruction: {name}')  
     return prog

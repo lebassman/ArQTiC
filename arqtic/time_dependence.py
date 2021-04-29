@@ -1,5 +1,12 @@
 import numpy as np
 
-def external_func(t):
-	freq=0.0048
-	return np.sin(freq*t)
+
+##########default functions##########
+def sin_func(freq,t):
+    return np.sin(freq*t)
+
+def cos_func(freq,t):
+    return np.sin(freq*t)
+
+##########define your own functions below##########
+

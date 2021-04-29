@@ -6,7 +6,7 @@ from qsearch.unitaries import *
 from qsearch.assemblers import *
 from qsearch import multistart_solvers, utils, options, leap_compiler, post_processing, assemblers
 from qsearch.defaults import standard_defaults, standard_smart_defaults
-
+import qiskit as qk
 
 def make_matchgate():
     u3 = U3Gate()
@@ -97,7 +97,8 @@ def get_constant_depth_program(program, N, multistarts=24, optimizer_repeats=5):
     
     opts.assemblydict=assemblydict_ibmopenqasm
     out = opts.assembler.assemble(result_dict, opts)
-    prog = ibm_circ_to_program(out)
+    ibm_circ = qk.QuantumCircuit.from_qasm_str(out)
+    prog = ibm_circ_to_program(ibm_circ)
     return prog
    
     

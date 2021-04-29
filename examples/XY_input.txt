@@ -7,17 +7,33 @@ ibm
 *Jy
 1.0
 
+*initial_spins
+0 1 0
+
 *delta_t 
 0.025
 
 *steps
-50
+40
 
 *num_spins
-4
+3
 
 *QCQS
 QS
 
-*device
-ibmq_qasm_simulator
+*compile
+True
+
+*time_dep_flag
+False
+
+*observable
+staggered_magnetization
+
+*hbar
+eVfs
+
+*constant_depth
+True
+
