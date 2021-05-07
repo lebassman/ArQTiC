@@ -468,6 +468,7 @@ class Simulation_Generator:
             elif (self.compiler == "tket"):
                 from pytket.qiskit import qiskit_to_tk
                 from pytket.backends.ibm import IBMQBackend, IBMQEmulatorBackend, AerBackend
+                from pytket.qasm import circuit_to_qasm_str
                 if self.device == "":
                     tket_backend = AerBackend()
                 else: 
@@ -482,6 +483,8 @@ class Simulation_Generator:
                 for circuit in self.ibm_circuit_list:
                     tket_circ = qiskit_to_tk(c)
                     tket_backend.compile_circuit(tket_circ)
+                    qasm_str = circuit_to_qasm_str(tket_circ)
+                    ibm_circ = qk.QuantumCircuit.from_qasm_str(qasm_str)
                     circs.append(tket_circ)
                 self.ibm_circuits_list=circs
                 print("Circuits compiled successfully")
