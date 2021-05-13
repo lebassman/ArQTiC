@@ -637,20 +637,20 @@ class Simulation_Generator:
             return self.cirq_circuits_list
 
     def local_magnetization(self,result: dict, shots: int, qub: int):
-      """Compute average magnetization from results of qk.execution.
-      Args:
-      - result (dict): a dictionary with the counts for each qubit, see qk.result.result module
-      - shots (int): number of trials
-      Return:
-      - average_mag (float)
-      """
-      mag = 0
-      for spin_str, count in result.items():
-        spin_int = [1 - 2 * float(spin_str[qub])]
-        #print(spin_str)
-        mag += (sum(spin_int) / len(spin_int)) * count
-      average_mag = mag / shots
-      return average_mag
+        """Compute average magnetization from results of qk.execution.
+        Args:
+        - result (dict): a dictionary with the counts for each qubit, see qk.result.result module
+        - shots (int): number of trials
+        Return:
+        - average_mag (float)
+        """
+        mag = 0
+        q_idx = self.num_spins - qub -1
+        for spin_str, count in result.items():
+            spin_int = [1 - 2 * float(spin_str[q_idx])]
+            mag += (sum(spin_int) / len(spin_int)) * count
+        average_mag = mag / shots
+        return average_mag
    
     def staggered_magnetization(self,result: dict, shots: int):
         sm_val = 0
@@ -669,6 +669,13 @@ class Simulation_Generator:
             mag_val += (sum(spin_int) / len(spin_int)) * count
         average_mag = mag_val/shots
         return average_mag
+    
+    def excitation_displacement(self,result: dict, shots: int):
+        dis = 0
+        for qub in range(self.num_spins):
+            z = self.local_magnetization(result, shots, qub)
+            dis += qub*((1.0 - z)/2.0)
+        return dis
 
 
     def run_circuits(self):
@@ -814,6 +821,15 @@ class Simulation_Generator:
                     #plt.close()
                     self.result_out_list.append(avg_mag)
                     self.result_matrix=avg_mag
+                elif (self.observable == "excitation_displacement"):
+                    disp = []
+                    for c in self.ibm_circuits_list:
+                        result_dict = result_noise.get_counts(c)
+                        print(result_dict)
+                        disp.append(self.excitation_displacement(result_dict, self.shots))
+                    self.result_out_list.append(disp)
+                    self.result_matrix=disp
+                    print(disp)
 
             elif self.QCQS in ["QC"]:
                 #QUANTUM COMPUTER POST PROCESSING

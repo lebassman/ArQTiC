@@ -1,0 +1,34 @@
+*backend
+ibm
+
+*Jx
+1.0
+
+*Jy
+1.0
+
+*hz
+random -3.0 3.0
+
+*initial_spins
+1 0 0 0 0
+
+*delta_t 
+0.25
+
+*steps
+20
+
+*num_spins
+5
+
+*QCQS
+QS
+
+*compile
+True
+
+*observable
+excitation_displacement
+
+
