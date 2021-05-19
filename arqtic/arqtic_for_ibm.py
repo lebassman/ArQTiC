@@ -40,11 +40,8 @@ def run_ibm(backend, prog, shots, opt_level=1):
     #bitstring = execute(ibm_circ, backend, noise_model=noise_model,coupling_map=coupling_map,basis_gates=basis_gates).result()
     return results
 
-def get_ibm_circuit(backend, prog):
+def get_ibm_circuit(backend, prog,q_regs,c_regs):
     nqubits = prog.nqubits
-    #declare registers
-    q_regs = qk.QuantumRegister(nqubits, 'q')
-    c_regs = qk.ClassicalRegister(nqubits, 'c')
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
     for gate in prog.gates:
@@ -75,7 +72,7 @@ def get_ibm_circuit(backend, prog):
             #rev_q.append(q)
             #ibm_circuit.unitary(gate.unitary, rev_q)
             ibm_circuit.unitary(gate.unitary, list(reversed(rev_q)))
-    
+    ibm_circuit.measure(q_regs,c_regs)
     return ibm_circuit
     
 def ibm_circ_to_program(ibm_circ):

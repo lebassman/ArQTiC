@@ -7,17 +7,20 @@ ibm
 *Jy
 1.0
 
+*hz
+random -3.0 3.0
+
 *initial_spins
-0 1 0
+1 0 0 0 0
 
 *delta_t 
-0.025
+0.25
 
 *steps
-40
+30
 
 *num_spins
-3
+5
 
 *QCQS
 QS
@@ -25,15 +28,8 @@ QS
 *compile
 True
 
-*time_dep_flag
-False
-
 *observable
-staggered_magnetization
+excitation_displacement
 
-*hbar
-eVfs
 
-*constant_depth
-True
 
