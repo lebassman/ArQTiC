@@ -7,17 +7,14 @@
 *Jz 
 1.0
 
-*h_ext
+*hx
 1.0
 
-*ext_dir
-X
-
 *beta
-2.5
+0.5
 
 *delta_beta 
-0.25
+0.05
 
 *domain
 3
@@ -32,7 +29,7 @@ QS
 ibm
 
 *device
-ibmq_ourense
+ibmq_athens
 
 
 

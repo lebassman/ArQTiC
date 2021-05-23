@@ -1,11 +1,14 @@
-*backend
-ibm
-
 *Jz 
 0.01183898
 
-*h_ext
+*hx
 0.01183898
+
+*time_dep_flag
+True
+
+*td_hx_func
+cos 0.0048
 
 *initial_spins 
 0 0 0
@@ -22,23 +25,15 @@ ibm
 *QCQS
 QS
 
+*backend
+ibm
+
 *device
-ibmq_ourense
-
-*ext_dir
-X
+ibmq_athens
 
 *plot_flag
 True
 
-*time_dep_flag
-True
-
-*freq
-0.0048
-
-*plot_flag
-True
 
 
 

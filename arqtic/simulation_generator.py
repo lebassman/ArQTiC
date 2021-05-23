@@ -4,6 +4,8 @@ from arqtic.program import Program, Gate
 from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 from arqtic.ds_compiler import get_constant_depth_program
+from arqtic.real_time import heisenberg_evolution_program
+from arqtic.observables import *
 import os
 
 #Create data directory
@@ -241,132 +243,6 @@ class Simulation_Generator:
                     func.append(float(self.td_hz_func[1+p]))
                 self.td_hz_func = func
 
-    def heisenberg_evolution_program(self, evol_time): #creates evolution program
-        prop_steps = int(evol_time/self.delta_t)
-        P = Program(self.num_spins)
-        if (len(self.Jx) > 0):
-            theta_Jx = 2.0*self.Jx*self.delta_t/self.H_BAR
-        if (len(self.Jy) > 0):
-            theta_Jy = 2.0*self.Jy*self.delta_t/self.H_BAR
-        if (len(self.Jz) > 0):
-            theta_Jz = 2.0*self.Jz*self.delta_t/self.H_BAR
-        if (len(self.hx) > 0):
-            theta_hx = 2.0*self.hx*self.delta_t/self.H_BAR
-        if (len(self.hy) > 0):
-            theta_hy = 2.0*self.hy*self.delta_t/self.H_BAR
-        if (len(self.hz) > 0):
-            theta_hz = 2.0*self.hz*self.delta_t/self.H_BAR
-        
-        for step in range(prop_steps):
-            #for time-dependent Hamiltonians
-            if (self.time_dep_flag == "True"):
-                t = (step + 0.5) * self.delta_t
-                if (self.custom_time_dep == "True"):
-                    ###needs to be implemented###
-                    raise Error(f'Custom time-dependence not yet implemented. Use sin or cos.')
-                else:
-                    if (len(self.td_Jx_func) > 0):
-                        func_name = self.td_Jx_func[0]
-                        freq = self.td_Jx_func[1]
-                        if (func_name == "sin"):
-                            theta_Jx = 2.0*self.Jx*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_Jx = 2.0*self.Jx*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-                    if (len(self.td_Jy_func) > 0):
-                        func_name = self.td_Jy_func[0]
-                        freq = self.td_Jy_func[1]
-                        if (func_name == "sin"):
-                            theta_Jy = 2.0*self.Jy*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_Jy = 2.0*self.Jy*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-                    if (len(self.td_Jz_func) > 0):
-                        func_name = self.td_Jz_func[0]
-                        freq = self.td_Jz_func[1]
-                        if (func_name == "sin"):
-                            theta_Jz = 2.0*self.Jz*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_Jz = 2.0*self.Jz*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-                    if (len(self.td_hx_func) > 0):
-                        func_name = self.td_hx_func[0]
-                        freq = self.td_hx_func[1]
-                        if (func_name == "sin"):
-                            theta_hx = 2.0*self.hx*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_hx = 2.0*self.hx*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-                    if (len(self.td_hy_func) > 0):
-                        func_name = self.td_hy_func[0]
-                        freq = self.td_hy_func[1]
-                        if (func_name == "sin"):
-                            theta_hy = 2.0*self.hy*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_hy = 2.0*self.hy*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-                    if (len(self.td_hz_func) > 0):
-                        func_name = self.td_hz_func[0]
-                        freq = self.td_hz_func[1]
-                        if (func_name == "sin"):
-                            theta_hz = 2.0*self.hz*np.sin(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        elif (func_name == "cos"):
-                            theta_hz = 2.0*self.hz*np.cos(2*np.pi*freq*t)*self.delta_t/self.H_BAR
-                        else: 
-                            raise Error(f'Unknown time-dependent function for Jx: {func_name}')
-
-            #add coupling term instruction sets
-            if (len(self.Jx) >0):
-                for q in range(self.num_spins-1):
-                    Jx_instr_set=[]
-                    Jx_instr_set.append(Gate([q], 'H'))
-                    Jx_instr_set.append(Gate([q+1], 'H'))
-                    Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
-                    Jx_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jx[q]]))
-                    Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
-                    Jx_instr_set.append(Gate([q], 'H',))
-                    Jx_instr_set.append(Gate([q+1], 'H',))
-                    P.add_instr(Jx_instr_set)
-            if (len(self.Jy) >0):
-                for q in range(self.num_spins-1):
-                    Jy_instr_set=[]
-                    Jy_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
-                    Jy_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
-                    Jy_instr_set.append(Gate([q, q+1],'CNOT'))
-                    Jy_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jy[q]]))
-                    Jy_instr_set.append(Gate([q, q+1], 'CNOT'))
-                    Jy_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
-                    Jy_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
-                    P.add_instr(Jy_instr_set)
-            if (len(self.Jz) >0):
-                for q in range(self.num_spins-1):
-                    Jz_instr_set=[]
-                    Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
-                    Jz_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jz[q]]))
-                    Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
-                    P.add_instr(Jz_instr_set)
-                
-            #add external magnetic field instruction sets    
-            if (len(self.hx) > 0):
-                for q in range(self.num_spins):
-                    hx_instr_set = [Gate([q], 'RX', angles=[theta_hx[q]])]
-                    P.add_instr(hx_instr_set)
-            if (len(self.hy) > 0):
-                for q in range(self.num_spins):
-                    hy_instr_set = [Gate([q], 'RY', angles=[theta_hy[q]])]
-                    P.add_instr(hy_instr_set)
-            if (len(self.hz) > 0):
-                for q in range(self.num_spins):
-                    hz_instr_set = [Gate([q], 'RZ', angles=[theta_hz[q]])]
-                    P.add_instr(hz_instr_set)
-           
-        return P
-
     def generate_programs(self):
         programs = []
         #create programs for real_time evolution
@@ -397,7 +273,7 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
-                evol_prog = self.heisenberg_evolution_program(evolution_time)
+                evol_prog = heisenberg_evolution_program(self, evolution_time)
                 if (self.constant_depth == "True" and j>0):
                     evol_prog = get_constant_depth_program(evol_prog, self.num_spins)
                 total_prog = Program(self.num_spins)
@@ -636,47 +512,6 @@ class Simulation_Generator:
                 self.generate_circuits()
             return self.cirq_circuits_list
 
-    def local_magnetization(self,result: dict, shots: int, qub: int):
-        """Compute average magnetization from results of qk.execution.
-        Args:
-        - result (dict): a dictionary with the counts for each qubit, see qk.result.result module
-        - shots (int): number of trials
-        Return:
-        - average_mag (float)
-        """
-        mag = 0
-        q_idx = self.num_spins - qub -1
-        for spin_str, count in result.items():
-            spin_int = [1 - 2 * float(spin_str[q_idx])]
-            mag += (sum(spin_int) / len(spin_int)) * count
-        average_mag = mag / shots
-        return average_mag
-   
-    def staggered_magnetization(self,result: dict, shots: int):
-        sm_val = 0
-        for spin_str, count in result.items():
-            spin_int = [1 - 2 * float(s) for s in spin_str]
-            for i in range(len(spin_int)):
-                spin_int[i] = spin_int[i]*(-1)**i
-            sm_val += (sum(spin_int) / len(spin_int)) * count
-        average_sm = sm_val/shots
-        return average_sm
-    
-    def system_magnetization(self,result: dict, shots: int):
-        mag_val = 0
-        for spin_str, count in result.items():
-            spin_int = [1 - 2 * float(s) for s in spin_str]
-            mag_val += (sum(spin_int) / len(spin_int)) * count
-        average_mag = mag_val/shots
-        return average_mag
-    
-    def excitation_displacement(self,result: dict, shots: int):
-        dis = 0
-        for qub in range(self.num_spins):
-            z = self.local_magnetization(result, shots, qub)
-            dis += qub*((1.0 - z)/2.0)
-        return dis
-
 
     def run_circuits(self):
         import glob
@@ -766,7 +601,7 @@ class Simulation_Generator:
                             tempfile.write("Post-processing qubit {} data\n".format(j+1))
                         for c in self.ibm_circuits_list:
                             result_dict = result_noise.get_counts(c)
-                            temp.append(self.local_magnetization(result_dict, self.shots,j))
+                            temp.append(local_magnetization(self.num_spins,result_dict, self.shots,j))
                             if i % (self.steps+1) == 0:
                                 avg_mag_sim.append(temp)
                                 temp = []
@@ -801,7 +636,7 @@ class Simulation_Generator:
                     avg_sm = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        avg_sm.append(self.staggered_magnetization(result_dict, self.shots))
+                        avg_sm.append(staggered_magnetization(result_dict, self.shots))
                     #plt.plot.range(self.steps+1), avg_zs[0])
                     #plt.xlabel("Simulation Timestep",fontsize=14)
                     #plt.ylabel("Order Parameter",fontsize=14)  
@@ -813,7 +648,7 @@ class Simulation_Generator:
                     avg_mag = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        avg_mag.append(self.system_magnetization(result_dict, self.shots))
+                        avg_mag.append(system_magnetization(result_dict, self.shots))
                     #plt.plot.range(self.steps+1), avg_zs[0])
                     #plt.xlabel("Simulation Timestep",fontsize=14)
                     #plt.ylabel("Order Parameter",fontsize=14)  
@@ -826,7 +661,7 @@ class Simulation_Generator:
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
                         print(result_dict)
-                        disp.append(self.excitation_displacement(result_dict, self.shots))
+                        disp.append(excitation_displacement(self.num_spins,result_dict, self.shots))
                     self.result_out_list.append(disp)
                     self.result_matrix=disp
                     print(disp)
@@ -844,7 +679,7 @@ class Simulation_Generator:
                             tempfile.write("Post-processing qubit {} data\n".format(j+1))
                         for c in self.ibm_circuits_list:
                             result_dict = result_noise.get_counts(c)
-                            temp.append(self.local_magnetization(result_dict, self.shots,j))
+                            temp.append(local_magnetization(self.num_spins, result_dict, self.shots,j))
                             if i % (self.steps+1) == 0:
                                 avg_mag_sim.append(temp)
                                 temp = []
@@ -879,7 +714,7 @@ class Simulation_Generator:
                     avg_sm = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        avg_sm.append(self.staggered_magnetization(result_dict, self.shots))
+                        avg_sm.append(staggered_magnetization(result_dict, self.shots))
                     #plt.plot.range(self.steps+1), avg_zs[0])
                     #plt.xlabel("Simulation Timestep",fontsize=14)
                     #plt.ylabel("Order Parameter",fontsize=14)  
@@ -891,7 +726,7 @@ class Simulation_Generator:
                     avg_mag = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        avg_mag.append(self.system_magnetization(result_dict, self.shots))
+                        avg_mag.append(system_magnetization(result_dict, self.shots))
                     #plt.plot.range(self.steps+1), avg_zs[0])
                     #plt.xlabel("Simulation Timestep",fontsize=14)
                     #plt.ylabel("Order Parameter",fontsize=14)  
@@ -904,7 +739,7 @@ class Simulation_Generator:
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
                         print(result_dict)
-                        disp.append(self.excitation_displacement(result_dict, self.shots))
+                        disp.append(excitation_displacement(self.num_spins, result_dict, self.shots))
                     self.result_out_list.append(disp)
                     self.result_matrix=disp
                     print(disp)
