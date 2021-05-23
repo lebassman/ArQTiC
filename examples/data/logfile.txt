@@ -1,4 +1,0 @@
-***ArQTiC Session Log File***
-
-Creating IBM quantum circuit objects...
-IBM quantum circuit objects created
