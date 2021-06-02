@@ -322,7 +322,7 @@ class Simulation_Generator:
         backend = self.device
         self.ibm_circuits_list=[]
         for program in self.programs_list:
-            ibm_circ = get_ibm_circuit(backend, program,self.q_regs,self.c_regs)
+            ibm_circ = get_ibm_circuit(backend, program,self.q_regs,self.c_regs,self.device)
             self.ibm_circuits_list.append(ibm_circ)
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:
@@ -357,7 +357,7 @@ class Simulation_Generator:
                     tempfile.write("Compiling circuits...\n")
                 circs = []
                 for circuit in self.ibm_circuit_list:
-                    tket_circ = qiskit_to_tk(c)
+                    tket_circ = qiskit_to_tk(circuit)
                     tket_backend.compile_circuit(tket_circ)
                     qasm_str = circuit_to_qasm_str(tket_circ)
                     ibm_circ = qk.QuantumCircuit.from_qasm_str(qasm_str)
@@ -388,14 +388,23 @@ class Simulation_Generator:
             p = pyquil.Program(RESET()) #compressed program
             ro = p.declare('ro', memory_type='BIT', memory_size=self.num_spins)
             for gate in circuit.gates:
-                if gate.name in "H":
-                    p.inst(pyquil.gates.H(gate.qubits[0]))
-                elif gate.name in "RZ":
-                    p.inst(pyquil.gates.RZ(gate.angles[0],gate.qubits[0]))
-                elif gate.name in "RX":
-                    p.inst(pyquil.gates.RX(gate.angles[0],gate.qubits[0]))
-                elif gate.name in "CNOT":
-                    p.inst(pyquil.gates.CNOT(gate.qubits[0],gate.qubits[1]))
+                if gate.name != "":
+                    if gate.name in "X":
+                        p.inst(pyquil.gates.X(gate.qubits[0]))
+                    elif gate.name in "Y":
+                        p.inst(pyquil.gates.Y(gate.qubits[0]))
+                    elif gate.name in "Z":
+                        p.inst(pyquil.gates.Z(gate.qubits[0]))
+                    elif gate.name in "H":
+                        p.inst(pyquil.gates.H(gate.qubits[0]))
+                    elif gate.name in "RZ":
+                        p.inst(pyquil.gates.RZ(gate.angles[0],gate.qubits[0]))
+                    elif gate.name in "RX":
+                        p.inst(pyquil.gates.RX(gate.angles[0],gate.qubits[0]))
+                    elif gate.name in "CNOT":
+                        p.inst(pyquil.gates.CNOT(gate.qubits[0],gate.qubits[1]))
+                    else:
+                        print("Unrecognized gate: {}".format(gate.name))
             for i in range(self.num_spins):
                 p.inst(pyquil.gates.MEASURE(i,ro[i]))
             p.wrap_in_numshots_loop(self.shots)
@@ -403,12 +412,12 @@ class Simulation_Generator:
 
         if "True" in self.compile:
             if self.QCQS in ["QS"]:
-                qc=get_qc(self.device_choice, as_qvm=True)
+                qc=get_qc(self.device, as_qvm=True)
             else:
-                qc=get_qc(self.device_choice)
-            qc.compiler.timeout = 20
+                qc=get_qc(self.device)
+            qc.compiler.set_timeout(100)
 
-            if self.default_compiler in "native":
+            if self.compiler in "native":
                 temp=[]
                 print("Transpiling circuits...")
                 with open(self.namevar,'a') as tempfile:
@@ -421,6 +430,7 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Circuits transpiled successfully\n")
             elif self.compiler in "tket":
+                temp=[]
                 from pytket.pyquil import pyquil_to_tk
                 from pytket.backends.forest import ForestBackend
                 if self.device == "":
@@ -434,8 +444,8 @@ class Simulation_Generator:
                 print("Compiling circuits...")
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Compiling circuits...\n")
-                for circuit in self.ibm_circuit_list:
-                    tket_circ = qiskit_to_tk(c)
+                for circuit in self.rigetti_circuits_list:
+                    tket_circ = qiskit_to_tk(circuit)
                     tket_backend.compile_circuit(tket_circ)
                     temp.append(tket_circ)
                 self.ibm_circuits_list=temp
@@ -488,11 +498,11 @@ class Simulation_Generator:
         qk.IBMQ.load_account()
 
 
-    def parameters(self):
-        print("Current model parameters:\n\nH_BAR = {}\nJX = {}\nJY = {}\nJZ = {}\nh_ext = {}\next_dir = {}".format(self.H_BAR,self.JX,self.JY,self.JZ,self.h_ext,self.ext_dir))
-        print("num_spins = {}\ninitial_spins = {}\ndelta_t = {}\nsteps = {}\nQCQS = {}\nshots = {}\nnoise_choice = {}".format(self.num_spins,self.initial_spins,self.delta_t,self.steps,self.QCQS,self.shots,self.noise_choice))
-        print("device choice = {}\nplot_flag = {}\nfreq = {}\ntime_dep_flag = {}\ncustom_time_dep = {}\n".format(self.device_choice,self.plot_flag,self.freq,self.time_dep_flag,self.custom_time_dep)) 
-        print("compile = {}\nauto_smart_compile = {}\ndefault_compiler = {}".format(self.compile,self.auto_smart_compile,self.default_compiler))
+    #def parameters(self):
+        #print("Current model parameters:\n\nH_BAR = {}\nJX = {}\nJY = {}\nJZ = {}\nh_ext = {}\next_dir = {}".format(self.H_BAR,self.JX,self.JY,self.JZ,self.h_ext,self.ext_dir))
+        #print("num_spins = {}\ninitial_spins = {}\ndelta_t = {}\nsteps = {}\nQCQS = {}\nshots = {}\nnoise_choice = {}".format(self.num_spins,self.initial_spins,self.delta_t,self.steps,self.QCQS,self.shots,self.noise_choice))
+        #print("device choice = {}\nplot_flag = {}\nfreq = {}\ntime_dep_flag = {}\ncustom_time_dep = {}\n".format(self.device,self.plot_flag,self.freq,self.time_dep_flag,self.custom_time_dep)) 
+        #print("compile = {}\nauto_smart_compile = {}\ndefault_compiler = {}".format(self.compile,self.auto_smart_compile,self.compiler))
         #this is missing some of the latest parameter additions
 
     def results(self):
@@ -545,7 +555,7 @@ class Simulation_Generator:
             #add measurements
             #temp = []
             #for circ in self.ibm_circuits_list:
-                #circ.measure(self.q_regs, self.c_regs)
+                #circ.measure(self.q_regs,self.c_regs)
                 #temp.append(circ)
             #self.ibm_circuits_list = temp
             #compile circuits to run
@@ -660,11 +670,9 @@ class Simulation_Generator:
                     disp = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        print(result_dict)
                         disp.append(excitation_displacement(self.num_spins,result_dict, self.shots))
                     self.result_out_list.append(disp)
                     self.result_matrix=disp
-                    print(disp)
 
             elif self.QCQS in ["QC"]:
                 #QUANTUM COMPUTER POST PROCESSING
@@ -738,11 +746,9 @@ class Simulation_Generator:
                     disp = []
                     for c in self.ibm_circuits_list:
                         result_dict = result_noise.get_counts(c)
-                        print(result_dict)
                         disp.append(excitation_displacement(self.num_spins, result_dict, self.shots))
                     self.result_out_list.append(disp)
                     self.result_matrix=disp
-                    print(disp)
         elif "rigetti" in self.backend:
             import pyquil
             from pyquil.quil import Program
@@ -751,7 +757,7 @@ class Simulation_Generator:
             print("Running Pyquil programs...")
             with open(self.namevar,'a') as tempfile:
                 tempfile.write("Running Pyquil programs...\n")
-            qc=get_qc(self.device_choice)
+            qc=get_qc(self.device)
             results_list=[]
             first_ind=0
             #each circuit represents one timestep
@@ -759,36 +765,77 @@ class Simulation_Generator:
                 temp=qc.run(circuit)
                 results_list.append(temp)
 
-            for i in range(self.num_spins):
-                print("Post-processing qubit {} data...".format(i+1))
+
+            #Post Processing Depending on Choice
+            self.result_out_list=[]
+            #SIMULATOR POST PROCESSING
+            if (self.observable == "local_magnetization"):
+                for j in range(self.num_spins):
+                    avg_mag_sim = []
+                    temp = []
+                    i = 1
+                    print("Post-processing qubit {} data".format(j+1))
+                    with open(self.namevar,'a') as tempfile:
+                        tempfile.write("Post-processing qubit {} data\n".format(j+1))
+                    for result in results_list:
+                        temp.append(local_magnetization_rigetti(self.num_spins,result, self.shots,j))
+                        if i % (self.steps+1) == 0:
+                            avg_mag_sim.append(temp)
+                            temp = []
+                        i += 1
+                    # time_vec=np.linspace(0,total_t,steps)
+                    # time_vec=time_vec*JX/H_BAR
+                    if "True" in self.plot_flag:
+                        fig, ax = plt.subplots()
+                        plt.plot(range(self.steps+1), avg_mag_sim[0])
+                        plt.xlabel("Simulation Timestep",fontsize=14)
+                        plt.ylabel("Average Magnetization",fontsize=14)
+                        plt.tight_layout()
+                        every_nth = 2
+                        for n, label in enumerate(ax.xaxis.get_ticklabels()):
+                            if (n+1) % every_nth != 0:
+                                label.set_visible(False)
+                        every_nth = 2
+                        for n, label in enumerate(ax.yaxis.get_ticklabels()):
+                            if (n+1) % every_nth != 0:
+                                label.set_visible(False)
+                        # plt.yticks(np.arange(-1, 1, step=0.2))  # Set label locations.
+                        plt.savefig("data/Simulator_result_qubit{}.png".format(j+1))
+                        plt.close()
+                    self.result_out_list.append(avg_mag_sim[0])
+                    existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(j+1, self.num_spins))
+                    np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(j+1,self.num_spins,len(existing)+1),avg_mag_sim[0])
+                self.result_matrix=np.stack(self.result_out_list)
+                print("Done")
                 with open(self.namevar,'a') as tempfile:
-                    tempfile.write("Post-Processing qubit {} data...\n".format(i+1))
-                qubit_specific_row=np.zeros(len(results_list))
-                for j in range(len(self.rigetti_circuits_list)):
-                    results=results_list[j]
+                    tempfile.write("Done\n")
+            elif (self.observable == "staggered_magnetization"):
+                avg_sm = []
+                for result in results_list:
+                    avg_sm.append(staggered_magnetization_rigetti(result, self.shots))
+                #plt.plot.range(self.steps+1), avg_zs[0])
+                #plt.xlabel("Simulation Timestep",fontsize=14)
+                #plt.ylabel("Order Parameter",fontsize=14)  
+                #plt.savefig("data/order_param.png")
+                #plt.close()
+                self.result_out_list.append(avg_sm)
+                self.result_matrix=avg_sm
+            elif (self.observable == "system_magnetization"):
+                avg_mag = []
+                for result in results_list:
+                    avg_mag.append(system_magnetization_rigetti(result, self.shots))
+                #plt.plot.range(self.steps+1), avg_zs[0])
+                #plt.xlabel("Simulation Timestep",fontsize=14)
+                #plt.ylabel("Order Parameter",fontsize=14)  
+                #plt.savefig("data/order_param.png")
+                #plt.close()
+                self.result_out_list.append(avg_mag)
+                self.result_matrix=avg_mag
+            elif (self.observable == "excitation_displacement"):
+                disp = []
+                for result in results_list:
+                    disp.append(excitation_displacement_rigetti(self.num_spins,result, self.shots))
+                self.result_out_list.append(disp)
+                self.result_matrix=disp
 
-                    summation=0
-                    for array in results:
-                        summation+=(1-2*array[i])
-
-                    summation=summation/len(results) #average over the number of shots
-
-                    qubit_specific_row[j]=summation
-                if first_ind==0:
-                    self.result_matrix=qubit_specific_row
-                    first_ind+=1
-                else:
-                    self.result_matrix=np.vstack((self.result_matrix,qubit_specific_row))
-                if "y" in self.plot_flag:
-                    plt.figure()
-                    xaxis=np.linspace(0,self.steps,num=self.steps+1)
-                    plt.plot(qubit_specific_row)
-                    plt.xlabel("Simulation Timestep")
-                    plt.ylabel("Average Magnetization")
-                    plt.savefig("data/Result_qubit{}.png".format(i+1))
-                    plt.close()
-                existing=glob.glob("data/Spin {} Average Magnetization Data, Qubits={}, num_*.txt".format(i+1,self.num_spins))
-                np.savetxt("data/Spin {} Average Magnetization Data, Qubits={}, num_{}.txt".format(i+1,self.num_spins,len(existing)+1),qubit_specific_row)
-            print("Done")
-            with open(self.namevar,'a') as tempfile:
-                tempfile.write("Done\n")
+            

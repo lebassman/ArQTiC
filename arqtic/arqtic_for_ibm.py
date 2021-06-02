@@ -1,9 +1,10 @@
+from numpy import c_
 from arqtic.program import Program, Gate
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 from arqtic.exceptions import Error
 
-def get_ibm_circuit(backend, prog,q_regs,c_regs):
+def get_ibm_circuit(backend, prog,q_regs,c_regs,device):
     nqubits = prog.nqubits
     #make program into IBM circuit
     ibm_circuit = qk.QuantumCircuit(q_regs, c_regs)
@@ -40,6 +41,8 @@ def get_ibm_circuit(backend, prog,q_regs,c_regs):
             for q in range(len(locs)):
                 loc_array.append(locs[-1-q])
             ibm_circuit.unitary(u, loc_array)
+    if ("wavefunction_simulator" in device)==False:
+        ibm_circuit.measure(q_regs,c_regs)
     return ibm_circuit
     
 def ibm_circ_to_program(ibm_circ):
