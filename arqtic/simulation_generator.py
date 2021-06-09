@@ -553,11 +553,11 @@ class Simulation_Generator:
                 basis_gates = noise_model.basis_gates
             
             #add measurements
-            #temp = []
-            #for circ in self.ibm_circuits_list:
-                #circ.measure(self.q_regs,self.c_regs)
-                #temp.append(circ)
-            #self.ibm_circuits_list = temp
+            temp = []
+            for circ in self.ibm_circuits_list:
+                circ.measure(self.q_regs,self.c_regs)
+                temp.append(circ)
+            self.ibm_circuits_list = temp
             #compile circuits to run
             temp = qk.compiler.transpile(self.ibm_circuits_list,backend=device,optimization_level=2)
             self.ibm_circuits_list = temp

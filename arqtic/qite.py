@@ -431,7 +431,6 @@ def make_QITE_program(sim_obj, regularizer=0.1):
     backend = sim_obj.backend
     nbeta = int(beta/dbeta)
     psi = get_state_from_string(sim_obj.initial_spins)
-    print(psi)
     nspins = sim_obj.num_spins
     #get Pauli basis
     pauli_basis = make_Pauli_basis(domain)

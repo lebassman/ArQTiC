@@ -30,19 +30,12 @@ def get_ibm_circuit(backend, prog,q_regs,c_regs,device):
                 raise Error(f'Unrecognized gate name: {gate.name}') 
         else: 
             #reverse qubit order for IBM
-            #rev_q = []
-            #for q in gate.qubits:
-            #    rev_q.append(nqubits - q - 1)
-            #ibm_circuit.unitary(gate.unitary, rev_q)
-            #ibm_circuit.unitary(gate.unitary, list(reversed(rev_q)))
             u = gate.unitary
             locs = gate.qubits
             loc_array = []
             for q in range(len(locs)):
                 loc_array.append(locs[-1-q])
             ibm_circuit.unitary(u, loc_array)
-    if ("wavefunction_simulator" in device)==False:
-        ibm_circuit.measure(q_regs,c_regs)
     return ibm_circuit
     
 def ibm_circ_to_program(ibm_circ):
