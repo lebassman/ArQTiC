@@ -5,19 +5,13 @@
 -1.0
 
 *Jz
--0.2
-
-*h_ext
-0.0
-
-*ext_dir
-X
+-4.0
 
 *delta_t 
 0.025
 
 *steps
-10
+50
 
 *shots 
 1024
