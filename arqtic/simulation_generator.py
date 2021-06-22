@@ -583,7 +583,7 @@ class Simulation_Generator:
                     print("Running noiseless simulator job...")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Running noiseless simulator job...\n")
-                        result_noise=execute(self.ibm_circuits_list,backend=device,shots=self.shots).result()
+                        result_noise=execute(self.ibm_circuits_list,backend=simulator,shots=self.shots).result()
                     print("Noiseless simulator job successful")
                     with open(self.namevar,'a') as tempfile:
                         tempfile.write("Noiseless simulator job successful\n")
