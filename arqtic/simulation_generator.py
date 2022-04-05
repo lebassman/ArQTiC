@@ -29,13 +29,13 @@ class Simulation_Generator:
             tempfile.write("***ArQTiC Session Log File***\n\n")
 
         #Default Parameters
-        self.H_BAR = 1
-        self.Jx=self.Jy=self.Jz=[]
-        self.hx=self.hy=self.hz=[]
-        self.td_Jx_func=self.td_Jy_func=self.td_Jz_func=[]
-        self.td_hx_func=self.td_hy_func=self.td_hz_func=[]
-        self.num_spins=2
-        self.initial_spins=[]
+        self.H_BAR = 1 #value of h-bar
+        self.Jx=self.Jy=self.Jz=[] #arrays for coupling constants
+        self.hx=self.hy=self.hz=[] #arrays for external fields
+        self.td_Jx_func=self.td_Jy_func=self.td_Jz_func=[] #time-dependence functions for coupling parameters
+        self.td_hx_func=self.td_hy_func=self.td_hz_func=[] #time-dependence functions for external fields
+        self.num_spins=[2] #total number of qubits along each lattice dimension
+        self.initial_spins=[] #only for setting initial product states
         self.delta_t=1
         self.steps=1
         self.real_time="True"
@@ -107,7 +107,17 @@ class Simulation_Generator:
             elif "*domain" in data[i]:
                 self.domain=int(value)
             elif "*num_spins" in data[i]:
-                self.num_spins=int(value)
+                self.num_spins = 1
+                dims = value.split(' ')
+                if (len(dims) > 0):
+                    self.Nrows = int(dims[0])
+                    self.num_spins*=self.Nrows
+                if (len(dims) > 1):
+                    self.Ncols = int(dims[1])
+                    self.num_spins*=self.Ncols
+                if (len(dims) > 2):
+                    self.Nlayers = int(dims[2])
+                    self.num_spins*=self.Nlayers
             elif "*QCQS" in data[i]:
                 self.QCQS=value
             elif "*device" in data[i]:
@@ -147,101 +157,7 @@ class Simulation_Generator:
             self.initial_spins = np.zeros(self.num_spins)
         else:
             self.initial_spins = np.asarray(self.initial_spins)
-        #coupling parameters
-        if (len(self.Jx) > 0):
-            if (len(self.Jx) == 1):
-                self.Jx = np.full(self.num_spins-1, float(self.Jx[0]))
-            elif (self.Jx[0] == "random"):
-                lower = float(self.Jx[1])
-                upper = float(self.Jx[2])
-                self.Jx = np.random.uniform(lower,upper,self.num_spins-1)
-            else:
-                self.Jx = np.asarray([float(x) for x in self.Jx])
-        if (len(self.Jy) > 0):
-            if (len(self.Jy) == 1):
-                self.Jy = np.full(self.num_spins-1, float(self.Jy[0]))
-            elif (self.Jy[0] == "random"):
-                lower = float(self.Jy[1])
-                upper = float(self.Jy[2])
-                self.Jy = np.random.uniform(lower,upper,self.num_spins-1)
-            else:
-                self.Jy = np.asarray([float(x) for x in self.Jy])
-        if (len(self.Jz) > 0):
-            if (len(self.Jz) == 1):
-                self.Jz = np.full(self.num_spins-1, float(self.Jz[0]))
-            elif (self.Jz[0] == "random"):
-                lower = float(self.Jz[1])
-                upper = float(self.Jz[2])
-                self.Jz = np.random.uniform(lower,upper,self.num_spins-1)
-            else:
-                self.Jz = np.asarray([float(x) for x in self.Jz])
-        #external magnetic field    
-        if (len(self.hx) > 0):
-            if (len(self.hx) == 1):
-                self.hx = np.full(self.num_spins, float(self.hx[0]))
-            elif (self.hx[0] == "random"):
-                lower = float(self.hx[1])
-                upper = float(self.hx[2])
-                self.hx = np.random.uniform(lower,upper,self.num_spins)
-            else:
-                self.hx = np.asarray([float(x) for x in self.hx])
-        if (len(self.hy) > 0):
-            if (len(self.hy) == 1):
-                self.hy = np.full(self.num_spins, float(self.hy[0]))
-            elif (self.hy[0] == "random"):
-                lower = float(self.hy[1])
-                upper = float(self.hy[2])
-                self.hy = np.random.uniform(lower,upper,self.num_spins)
-            else:
-                self.hy = np.asarray([float(x) for x in self.hy])
-        if (len(self.hz) > 0):
-            if (len(self.hz) == 1):
-                self.hz = np.full(self.num_spins, float(self.hz[0]))
-            elif (self.hz[0] == "random"):
-                lower = float(self.hz[1])
-                upper = float(self.hz[2])
-                self.hz = np.random.uniform(lower,upper,self.num_spins)
-            else:
-                self.hz = np.asarray([float(x) for x in self.hz])
-       
-        #time dependence
-        if (self.time_dep_flag == "True"):
-            if(len(self.td_Jx_func) > 0):
-                func = []
-                func.append(self.td_Jx_func[0]) #time-dependent function name
-                for p in range(len(self.td_Jx_func) - 1):
-                    func.append(float(self.td_Jx_func[1+p]))
-                self.td_Jx_func = func
-            if(len(self.td_Jy_func) > 0):
-                func = []
-                func.append(self.td_Jy_func[0]) #time-dependent function name
-                for p in range(len(self.td_Jy_func) - 1):
-                    func.append(float(self.td_Jy_func[1+p]))
-                self.td_Jy_func = func
-            if(len(self.td_Jz_func) > 0):
-                func = []
-                func.append(self.td_Jz_func[0]) #time-dependent function name
-                for p in range(len(self.td_Jz_func) - 1):
-                    func.append(float(self.td_Jz_func[1+p]))
-                self.td_Jz_func = func
-            if(len(self.td_hx_func) > 0):
-                func = []
-                func.append(self.td_hx_func[0]) #time-dependent function name
-                for p in range(len(self.td_hx_func) - 1):
-                    func.append(float(self.td_hx_func[1+p]))
-                self.td_hx_func = func
-            if(len(self.td_hy_func) > 0):
-                func = []
-                func.append(self.td_hy_func[0]) #time-dependent function name
-                for p in range(len(self.td_hy_func) - 1):
-                    func.append(float(self.td_hy_func[1+p]))
-                self.td_hy_func = func
-            if(len(self.td_hz_func) > 0):
-                func = []
-                func.append(self.td_hz_func[0]) #time-dependent function name
-                for p in range(len(self.td_hz_func) - 1):
-                    func.append(float(self.td_hz_func[1+p]))
-                self.td_hz_func = func
+        
 
     def generate_programs(self):
         programs = []
