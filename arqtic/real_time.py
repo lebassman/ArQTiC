@@ -240,12 +240,13 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
 
 def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution program
     N = sim_obj.num_spins #total number of spins in 2D systems
-    Nrows = sim_obj.Nrows #number of rows in 2D lattice
-    Ncols = sim_obj.Ncols #number of columns in 2D lattice
+    nRows = sim_obj.Nrows #number of rows in 2D lattice
+    nCols = sim_obj.Ncols #number of columns in 2D lattice
     dt = sim_obj.delta_t
     H_BAR = sim_obj.H_BAR
     prop_steps = int(evol_time/dt)
     P = Program(N)
+    pbc_flag = sim_obj.PBC
     
     #assume coupling strengths along each axis will be uniform across all qubits
     #though they can vary with time
@@ -448,8 +449,8 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                         theta_hx = 2.0*hx*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     elif (func_name == "linear"):
                         increments = td_hx_func[1]
-                        val = hx + increments*step
-                        theta_hx = 2.0*val*dt/H_BAR
+                        vals = hx + increments*step
+                        theta_hx = 2.0*vals*dt/H_BAR
                     else:
                         raise Error(f'Unknown time-dependent function for hx: {func_name}')
             if (len(td_hy_func) > 0):
@@ -462,8 +463,8 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                         theta_hy = 2.0*hy*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     elif (func_name == "linear"):
                         increments = td_hy_func[1]
-                        val = hy + increments*step
-                        theta_hy = 2.0*val*dt/H_BAR
+                        vals = hy + increments*step
+                        theta_hy = 2.0*vals*dt/H_BAR
                     else:
                         raise Error(f'Unknown time-dependent function for hy: {func_name}')
             if (len(td_hz_func) > 0):
@@ -476,56 +477,147 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                         theta_hz = 2.0*hz*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     elif (func_name == "linear"):
                         increments = td_hz_func[1]
-                        val = hz + increments*step
-                        theta_hz = 2.0*val*dt/H_BAR
+                        vals = hz + increments*step
+                        theta_hz = 2.0*vals*dt/H_BAR
                     else:
                         raise Error(f'Unknown time-dependent function for hz: {func_name}')
-               
-        #initialize coupling arrays for each time-step
-        Jx_coupling_array = []
-        Jy_coupling_array = []
-        Jz_coupling_array = []
-        hx_coupling_array = []
-        hy_coupling_array = []
-        hz_coupling_array = []
-        #prepare coupling term arrays, which are an array of arrays of the form [J,q1,q2] or [h,q]
-        #loop over qubits in 2D lattice
-        for r in range(Nrows):
-            for c in range(Ncols):
-                ref_idx = r*Nrows + c #index of reference qubit
-                #add coupling terms for all 4 directions around reference qubit
-                #couple to qubit above
-                if (r>0):
+        
+        #initialize the instruction sets for each time-step
+        #these arrays will be of the form [J, q1, q2] or [h[q], q]
+        Jx_instr_set = []
+        Jy_instr_set = []
+        Jz_instr_set = []
+        hx_instr_set = []
+        hy_instr_set = []
+        hz_instr_set = []       
+        #loop over qubit index to generate coupling terms between nearest-neighbor pairs and apply external field
+        for q_idx in range(N):
+            #couple to the qubit the right
+            if ((q_idx+1)%nCols > 0):
+                if (len(Jx) > 0):
+                    Jx_instr_set.append([theta_Jx, q_idx, q_idx+1])
+                if (len(Jy) > 0):
+                    Jy_instr_set.append([theta_Jy, q_idx, q_idx+1])
+                if (len(Jz) > 0):
+                    Jz_instr_set.append([theta_Jz, q_idx, q_idx+1])
+            #couple to the qubit below
+            if (q_idx < (nRows-1)*nCols):
+                if (len(Jx) > 0):
+                    Jx_instr_set.append([theta_Jx, q_idx, q_idx+nCols])
+                if (len(Jy) > 0):
+                    Jy_instr_set.append([theta_Jy, q_idx, q_idx+nCols])
+                if (len(Jz) > 0):
+                    Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
+            #add additional pairs is periodic boundary conditions exist
+            if (pbc_flag):
+                #apply PBC couplings between top and bottom rows
+                if (q_idx < nCols):
                     if (len(Jx) > 0):
-                        Jx_coupling_array.append([theta_Jx, ref_idx, ref_idx-Ncols])
+                        Jx_instr_set.append([theta_Jx, q_idx, q_idx+((nRows-1)*nCols)])
                     if (len(Jy) > 0):
-                        Jy_coupling_array.append([theta_Jy, ref_idx, ref_idx-Ncols])
+                        Jy_instr_set.append([theta_Jy, q_idx, q_idx+((nRows-1)*nCols)])
                     if (len(Jz) > 0):
-                        Jz_coupling_array.append([theta_Jz, ref_idx, ref_idx-Ncols])
-                if (r == 0 and pbc == "True"):
+                        Jz_instr_set.append([theta_Jz, q_idx, q_idx+((nRows-1)*nCols)])
+                #apply PBC couplings between left-most and right-most columns
+                if ((q_idx%nCols) == 0):
                     if (len(Jx) > 0):
-                        Jx_coupling_array.append([theta_Jx, ref_idx, Ncols*(Nrows-1)+c])
+                        Jx_instr_set.append([theta_Jx, q_idx, q_idx+nCols])
                     if (len(Jy) > 0):
-                        Jy_coupling_array.append([theta_Jy, ref_idx, Ncols*(Nrows-1)+c])
+                        Jy_instr_set.append([theta_Jy, q_idx, q_idx+nCols])
                     if (len(Jz) > 0):
-                        Jz_coupling_array.append([theta_Jz, ref_idx, Ncols*(Nrows-1)+c])  
-                #couple to qubit below
-                if (r<(Nrows-1)):
-                    if (len(Jx) > 0):
-                        Jx_coupling_array.append([theta_Jx, ref_idx, ref_idx+Ncols])
-                    if (len(Jy) > 0):
-                        Jy_coupling_array.append([theta_Jy, ref_idx, ref_idx+Ncols])
-                    if (len(Jz) > 0):
-                        Jz_coupling_array.append([theta_Jz, ref_idx, ref_idx+Ncols])
-                if (r == (Nrows-1) and pbc == "True"):
-                    if (len(Jx) > 0):
-                        Jx_coupling_array.append([theta_Jx, ref_idx, c])
-                    if (len(Jy) > 0):
-                        Jy_coupling_array.append([theta_Jy, ref_idx, c])
-                    if (len(Jz) > 0):
-                        Jz_coupling_array.append([theta_Jz, ref_idx, c])  
-                #couple to qubit to right
-                #couple to qubit to left
+                        Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
+            #apply external field terms to qubit
+            if (len(hx) > 0):
+                hx_instr_set.append([theta_hx[q_idx], q_idx])
+            if (len(hy) > 0):
+                hy_instr_set.append([theta_hy[q_idx], q_idx])
+            if (len(hz) > 0):
+                hz_instr_set.append([theta_hz[q_idx], q_idx])
+
+        #apply instruction sets to program P
+        #add coupling term instruction sets
+        if (len(Jx_instr_set) > 0):
+            for instr in Jx_instr_set:
+                angle = instr[0]
+                q1 = instr[1]
+                q2 = instr[2]
+                instr_set = []
+                instr_set.append(Gate([q1], 'H'))
+                instr_set.append(Gate([q2], 'H'))
+                instr_set.append(Gate([q1, q2], 'CNOT'))
+                instr_set.append(Gate([q2], 'RZ', angles=[angle]))
+                instr_set.append(Gate([q1, q2], 'CNOT'))
+                instr_set.append(Gate([q1], 'H',))
+                instr_set.append(Gate([q2], 'H',))
+                P.add_instr(instr_set)
+        if (len(Jy) >0):
+            for instr in Jy_instr_set:
+                angle = instr[0]
+                q1 = instr[1]
+                q2 = instr[2]
+                instr_set = []
+                instr_set.append(Gate([q1],'RX',angles=[-np.pi/2]))
+                instr_set.append(Gate([q2],'RX',angles=[-np.pi/2]))
+                instr_set.append(Gate([q1, q2],'CNOT'))
+                instr_set.append(Gate([q2], 'RZ', angles=[angle]))
+                instr_set.append(Gate([q1, q2], 'CNOT'))
+                instr_set.append(Gate([q1],'RX',angles=[np.pi/2]))
+                instr_set.append(Gate([q2],'RX',angles=[np.pi/2]))
+                P.add_instr(instr_set)
+        if (len(Jz) >0):
+            for instr in Jx_instr_set:
+                angle = instr[0]
+                q1 = instr[1]
+                q2 = instr[2]
+                instr_set = []
+                instr_set.append(Gate([q1, q2], 'CNOT'))
+                instr_set.append(Gate([q2], 'RZ', angles=[angle]))
+                instr_set.append(Gate([q1, q2], 'CNOT'))
+                P.add_instr(instr_set)
+
+        #add external magnetic field instruction sets
+        if (len(hx_instr_set) > 0):
+            for instr in hx_instr_set:
+                angle = instr[0]
+                q = instr[1]
+                instr_set = [Gate([q], 'RX', angles=[angle])]
+                P.add_instr(instr_set)
+        if (len(hy_instr_set) > 0):
+            for instr in hy_instr_set:
+                angle = instr[0]
+                q = instr[1]
+                instr_set = [Gate([q], 'RY', angles=[angle])]
+                P.add_instr(instr_set)
+        if (len(hz_instr_set) > 0):
+            for instr in hz_instr_set:
+                angle = instr[0]
+                q = instr[1]
+                instr_set = [Gate([q], 'RZ', angles=[angle])]
+                P.add_instr(instr_set)
+
+    #return program
+    return P
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             
     
 

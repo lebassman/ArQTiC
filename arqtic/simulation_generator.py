@@ -58,6 +58,7 @@ class Simulation_Generator:
         self.constant_depth="False"
         self.observable="system_magnetization"
         self.measure_dir="z"
+        self.PBC = "False"
 
         self.time_func=np.cos
 
@@ -142,6 +143,8 @@ class Simulation_Generator:
                 self.compile=value
             elif "*constant_depth" in data[i]:
                 self.constant_depth=value
+            elif "*PBC" in data[i]:
+                self.PBC=value
             elif "*custom_time_dep" in data[i]:
                 self.custom_time_dep=value
                 if self.custom_time_dep in "True":
