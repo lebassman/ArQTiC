@@ -4,8 +4,9 @@ from arqtic.program import Program, Gate
 from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 from arqtic.ds_compiler import get_constant_depth_program
-from arqtic.real_time import heisenberg_evolution_program
+from arqtic.real_time import heisenberg_evolution_program, heisenberd2D_evolution_program
 from arqtic.observables import *
+from arqtic.exceptions import Error
 import os
 
 #Create data directory
@@ -110,6 +111,7 @@ class Simulation_Generator:
             elif "*num_spins" in data[i]:
                 self.num_spins = 1
                 dims = value.split(' ')
+                self.dims = len(dims)
                 if (len(dims) > 0):
                     self.Nrows = int(dims[0])
                     self.num_spins*=self.Nrows
@@ -192,7 +194,12 @@ class Simulation_Generator:
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
                 evolution_time = self.delta_t * j
-                evol_prog = heisenberg_evolution_program(self, evolution_time)
+                if (self.dims == 1):
+                    evol_prog = heisenberg_evolution_program(self, evolution_time)
+                elif (self.dims == 2): 
+                    evol_prog = heisenberg2D_evolution_program(self, evolution_time)
+                else: 
+                    raise Error(f"System dimension of size {self.dim} not yet implemented.")
                 if (self.constant_depth == "True" and j>0):
                     evol_prog = get_constant_depth_program(evol_prog, self.num_spins)
                 total_prog = Program(self.num_spins)
