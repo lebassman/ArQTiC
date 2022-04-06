@@ -151,7 +151,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     elif (func_name == "cos"):
                         theta_Jy = 2.0*Jy*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     else:
-                        raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                        raise Error(f'Unknown time-dependent function for Jy: {func_name}')
                 if (len(td_Jz_func) > 0):
                     func_name = td_Jz_func[0]
                     freq = td_Jz_func[1]
@@ -160,7 +160,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     elif (func_name == "cos"):
                         theta_Jz = 2.0*Jz*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     else:
-                        raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                        raise Error(f'Unknown time-dependent function for Jz: {func_name}')
                 if (len(td_hx_func) > 0):
                     func_name = td_hx_func[0]
                     freq = td_hx_func[1]
@@ -169,7 +169,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     elif (func_name == "cos"):
                         theta_hx = 2.0*hx*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     else:
-                        raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                        raise Error(f'Unknown time-dependent function for hx: {func_name}')
                 if (len(td_hy_func) > 0):
                     func_name = td_hy_func[0]
                     freq = td_hy_func[1]
@@ -178,7 +178,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     elif (func_name == "cos"):
                         theta_hy = 2.0*hy*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     else:
-                        raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                        raise Error(f'Unknown time-dependent function for hy: {func_name}')
                 if (len(td_hz_func) > 0):
                     func_name = td_hz_func[0]
                     freq = td_hz_func[1]
@@ -187,7 +187,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     elif (func_name == "cos"):
                         theta_hz = 2.0*hz*np.cos(2*np.pi*freq*t)*dt/H_BAR
                     else:
-                        raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+                        raise Error(f'Unknown time-dependent function for hz: {func_name}')
 
         #add coupling term instruction sets
         if (len(Jx) >0):
@@ -252,16 +252,13 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
     #though they can vary with time
     #assign initial values for coupling strengths
     if (len(sim_obj.Jx) > 0):
-        Jx_list = np.asarray([float(x) for x in sim_obj.Jx])
-        #Jx = Jx_list[0] #assume uniform coupling for all pairs
+        Jx = np.asarray([float(x) for x in sim_obj.Jx])
     else: Jx = []
     if (len(sim_obj.Jy) > 0):
-        Jy_list = np.asarray([float(x) for x in sim_obj.Jy])
-        #Jy = Jy_list[0] #assume uniform coupling for all pairs
+        Jy = np.asarray([float(x) for x in sim_obj.Jy])
     else: Jy = []
     if (len(sim_obj.Jz) > 0):
-        Jz_list = np.asarray([float(x) for x in sim_obj.Jz])
-        #Jz = Jz_list[0] #assume uniform coupling for all pairs
+        Jz = np.asarray([float(x) for x in sim_obj.Jz])
     else: Jz = []
         
     #external field terms can vary across the different qubits
@@ -308,8 +305,12 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "linear"):
                 increment = (sim_obj.td_Jx_func[1] - Jx[0])/prop_steps
                 td_Jx_func = ["linear", increment]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for Jx: {func_name}')
+        else: 
+            td_Jx_func = []
+            if (len(Jx) > 0):
+                theta_Jx = 2.0*Jx[0]*dt/H_BAR
         if(len(sim_obj.td_Jy_func) > 0):
             func_name = sim_obj.td_Jy_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -319,8 +320,12 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "linear"):
                 increment = (sim_obj.td_Jy_func[1] - Jy[0])/prop_steps
                 td_Jy_func = ["linear", increment]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for Jy: {func_name}')
+        else: 
+            td_Jy_func = []
+            if (len(Jy) > 0):
+                theta_Jy = 2.0*Jy[0]*dt/H_BAR
         if(len(sim_obj.td_Jz_func) > 0):
             func_name = sim_obj.td_Jz_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -330,8 +335,12 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "linear"):
                 increment = (sim_obj.td_Jz_func[1] - Jz[0])/prop_steps
                 td_Jz_func = ["linear", increment]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for Jz: {func_name}')
+        else: 
+            td_Jz_func = []
+            if (len(Jz) > 0):
+                theta_Jz = 2.0*Jz[0]*dt/H_BAR
         if(len(sim_obj.td_hx_func) > 0):
             func_name = sim_obj.td_hx_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -344,8 +353,12 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                     final_vals = np.full(sim_obj.num_spins, float(final_vals[0]))
                 increments = (final_vals - hx)/prop_steps
                 td_hx_func = ["linear", increments]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for hx: {func_name}')
+        else: 
+            td_hx_func = []
+            if (len(hx) > 0):
+                theta_hx = 2.0*hx*dt/H_BAR
         if(len(sim_obj.td_hy_func) > 0):
             func_name = sim_obj.td_hy_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -358,8 +371,12 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                     final_vals = np.full(sim_obj.num_spins, float(final_vals[0]))
                 increments = (final_vals - hy)/prop_steps
                 td_hy_func = ["linear", increments]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for hy: {func_name}')
+        else: 
+            td_hy_func = []
+            if (len(hy) > 0):
+                theta_hy = 2.0*hy*dt/H_BAR
         if(len(sim_obj.td_hz_func) > 0):
             func_name = sim_obj.td_hz_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -367,23 +384,31 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "cos"):
                 td_hz_func = ["cos", sim_obj.td_hz_func[1]]
             elif (func_name == "linear"):
-                final_vals = np.asarray(sim_obj.td_hz_func[1])
-                if (len(final_vals) == 1):
-                    final_vals = np.full(sim_obj.num_spins, float(final_vals[0]))
+                final_val = np.asarray(sim_obj.td_hz_func[1])
+                if (final_val == "random"):
+                    lower = float(sim_obj.td_hz_func[2])
+                    upper = float(sim_obj.td_hz_func[3])
+                    final_vals = np.random.uniform(lower,upper,sim_obj.num_spins)
+                else:
+                    final_vals = np.full(sim_obj.num_spins, float(final_val))
                 increments = (final_vals - hz)/prop_steps
                 td_hz_func = ["linear", increments]
-            else 
+            else: 
                 raise Error(f'Unknown time-dependent function for hz: {func_name}')
+        else: 
+            td_hz_func = []
+            if (len(hz) > 0):
+                theta_hz = 2.0*hz*dt/H_BAR
 
 
     #time-independent Hamiltonian
     if (sim_obj.time_dep_flag == "False"):
         if (len(Jx) > 0):
-            theta_Jx = 2.0*Jx*dt/H_BAR
+            theta_Jx = 2.0*Jx[0]*dt/H_BAR
         if (len(Jy) > 0):
-            theta_Jy = 2.0*Jy*dt/H_BAR
+            theta_Jy = 2.0*Jy[0]*dt/H_BAR
         if (len(Jz) > 0):
-            theta_Jz = 2.0*Jz*dt/H_BAR
+            theta_Jz = 2.0*Jz[0]*dt/H_BAR
         if (len(hx) > 0):
             theta_hx = 2.0*hx*dt/H_BAR
         if (len(hy) > 0):
@@ -509,7 +534,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                 if (len(Jz) > 0):
                     Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
             #add additional pairs is periodic boundary conditions exist
-            if (pbc_flag):
+            if (pbc_flag == "True"):
                 #apply PBC couplings between top and bottom rows
                 if (q_idx < nCols):
                     if (len(Jx) > 0):
@@ -550,7 +575,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                 instr_set.append(Gate([q1], 'H',))
                 instr_set.append(Gate([q2], 'H',))
                 P.add_instr(instr_set)
-        if (len(Jy) >0):
+        if (len(Jy_instr_set) > 0):
             for instr in Jy_instr_set:
                 angle = instr[0]
                 q1 = instr[1]
@@ -564,8 +589,8 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                 instr_set.append(Gate([q1],'RX',angles=[np.pi/2]))
                 instr_set.append(Gate([q2],'RX',angles=[np.pi/2]))
                 P.add_instr(instr_set)
-        if (len(Jz) >0):
-            for instr in Jx_instr_set:
+        if (len(Jz_instr_set) > 0):
+            for instr in Jz_instr_set:
                 angle = instr[0]
                 q1 = instr[1]
                 q2 = instr[2]

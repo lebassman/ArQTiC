@@ -1,0 +1,32 @@
+*Jx
+-1.0
+
+*Jy 
+-2.0
+
+*hz
+-1.0 1.0 -1.0 1.0 -1.0 1.0 -1.0 1.0 -1.0 
+
+*delta_t 
+0.1
+
+*steps
+5
+
+*shots 
+100
+
+*num_spins
+3 3
+
+*backend
+cirq
+
+*QCQS
+QS
+
+*time_dep_flag
+True
+
+*td_hz_func
+linear random -3.0 3.0
