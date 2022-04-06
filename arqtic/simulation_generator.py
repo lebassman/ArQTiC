@@ -39,6 +39,8 @@ class Simulation_Generator:
         self.initial_spins=[] #only for setting initial product states
         self.delta_t=1
         self.steps=1
+        self.start_timestep=0
+        self.end_timestep=0
         self.real_time="True"
         self.QCQS="QS"
         self.shots=1024
@@ -98,6 +100,10 @@ class Simulation_Generator:
                 self.delta_t=float(value)
             elif "*steps" in data[i]:
                 self.steps=int(value)
+            elif "*start_timestep" in data[i]:
+                self.start_timestep=int(value)
+            elif "*end_timestep" in data[i]:
+                self.end_timestep=int(value)
             elif "*real_time" in data[i]:
                 self.real_time=value
             elif "*observable" in data[i]:
@@ -168,7 +174,8 @@ class Simulation_Generator:
         programs = []
         #create programs for real_time evolution
         if (self.real_time == "True"):
-            
+            if (self.end_timestep == 0):
+                self.end_timestep = self.steps+1
             #inital spin preparation program
             init_prog = Program(self.num_spins)
             index=0
@@ -189,7 +196,7 @@ class Simulation_Generator:
                     meas_prog.add_gate(Gate([q],'RX',angles=[-np.pi/2]))
                                      
             #total program
-            for j in range(0, self.steps+1):
+            for j in range(self.start_timestep, self.end_timestep+1):
                 print("Generating timestep {} program".format(j))
                 with open(self.namevar,'a') as tempfile:
                     tempfile.write("Generating timestep {} program\n".format(j))
@@ -216,8 +223,9 @@ class Simulation_Generator:
             self.qite_energies = energies
             self.programs_list=programs
 
-    def generate_circuits(self): 
-        self.generate_programs()
+    def generate_circuits(self):
+        if (self.programs_list == []):
+            self.generate_programs()
         #convert to backend specific circuits if one is requested    
         if self.backend in "ibm":
             self.generate_ibm()
@@ -447,6 +455,36 @@ class Simulation_Generator:
             if len(self.cirq_circuits_list)==0:
                 self.generate_circuits()
             return self.cirq_circuits_list
+        
+    def write_programs_to_qasm(self, fname="my_circuit"):
+        if (self.programs_list == []):
+            self.generate_programs()
+        for t in range(self.end_timestep+1 - self.start_timestep):
+            timestep = self.start_timestep + t
+            file = open(f'{fname}_timestep{timestep}.qasm', 'w')
+            file.write("""OPENQASM 2.0;\ninclude "qelib1.inc";\n\n""")
+            file.write(f"qreg q[{self.num_spins}];\n\n")
+            program = self.programs_list[t]
+            for gate in program.gates:
+                if gate.name in "H":
+                    file.write(f"h q[{gate.qubits[0]}];\n")
+                elif gate.name in "X":
+                    file.write(f"x q[{gate.qubits[0]}];\n")
+                elif gate.name in "Y":
+                    file.write(f"y q[{gate.qubits[0]}];\n")
+                elif gate.name in "Z":
+                    file.write(f"z q[{gate.qubits[0]}];\n")
+                elif gate.name in "RX":
+                    file.write(f"rx({gate.angles[0]}) q[{gate.qubits[0]}];\n")
+                elif gate.name in "RY":
+                    file.write(f"ry({gate.angles[0]}) q[{gate.qubits[0]}];\n")
+                elif gate.name in "RZ":
+                    file.write(f"rz({gate.angles[0]}) q[{gate.qubits[0]}];\n")
+                elif gate.name in "CNOT":
+                    file.write(f"cx q[{gate.qubits[0]}] q[{gate.qubits[1]}];\n")
+                else: 
+                    raise Error(f"gate name {gate.name} not recognized!")
+            file.close()
 
 
     def run_circuits(self):

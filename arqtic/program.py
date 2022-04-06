@@ -42,7 +42,7 @@ gate_matrix_dict = {
 class Gate: 
     def __init__(self, qubits, name = "", angles=[], unitary=[]):
         self.name = name
-        self. angles = angles
+        self.angles = angles
         self.qubits = qubits
         self.unitary = unitary
 

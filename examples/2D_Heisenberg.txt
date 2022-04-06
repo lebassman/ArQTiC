@@ -11,10 +11,13 @@
 0.05
 
 *steps
-500
+10
 
-*shots 
-100
+*start_timestep
+9
+
+*end_timestep
+10
 
 *num_spins
 4 6
