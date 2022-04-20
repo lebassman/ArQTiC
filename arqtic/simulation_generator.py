@@ -120,7 +120,7 @@ class Simulation_Generator:
                 self.dims = len(dims)
                 if (len(dims) > 0):
                     self.nRows = int(dims[0])
-                    self.num_spins*=self.rRows
+                    self.num_spins*=self.nRows
                 if (len(dims) > 1):
                     self.nCols = int(dims[1])
                     self.num_spins*=self.nCols
