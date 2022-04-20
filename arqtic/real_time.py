@@ -240,8 +240,8 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
 
 def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution program
     N = sim_obj.num_spins #total number of spins in 2D systems
-    nRows = sim_obj.Nrows #number of rows in 2D lattice
-    nCols = sim_obj.Ncols #number of columns in 2D lattice
+    nRows = sim_obj.nRows #number of rows in 2D lattice
+    nCols = sim_obj.nCols #number of columns in 2D lattice
     dt = sim_obj.delta_t
     H_BAR = sim_obj.H_BAR
     prop_steps = int(evol_time/dt)
