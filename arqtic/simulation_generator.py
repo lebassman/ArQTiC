@@ -1,9 +1,9 @@
 #import necessary libraries
 import numpy as np
 from arqtic.program import Program, Gate
-from arqtic.qite import make_QITE_program
+#from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
-from arqtic.ds_compiler import get_constant_depth_program
+#from arqtic.ds_compiler import get_constant_depth_program
 from arqtic.real_time import heisenberg_evolution_program, heisenberg2D_evolution_program
 from arqtic.observables import *
 from arqtic.exceptions import Error
@@ -412,8 +412,8 @@ class Simulation_Generator:
                     gate_list.append(cirq.rx(gate.angles[0])(qubit_list[gate.qubits[0]]))
                 elif gate.name in "CNOT":
                     gate_list.append(cirq.CNOT(qubit_list[gate.qubits[0]],qubit_list[gate.qubits[1]]))
-            for i in range(self.num_spins):
-                gate_list.append(cirq.measure(qubit_list[i]))
+            #for i in range(self.num_spins):
+            #    gate_list.append(cirq.measure(qubit_list[i]))
             c.append(gate_list,strategy=cirq.InsertStrategy.EARLIEST)
             self.cirq_circuits_list.append(c)
         print("Successfully created Cirq circuit list")
@@ -481,7 +481,7 @@ class Simulation_Generator:
                 elif gate.name in "RZ":
                     file.write(f"rz({gate.angles[0]}) q[{gate.qubits[0]}];\n")
                 elif gate.name in "CNOT":
-                    file.write(f"cx q[{gate.qubits[0]}] q[{gate.qubits[1]}];\n")
+                    file.write(f"cx q[{gate.qubits[0]}], q[{gate.qubits[1]}];\n")
                 else: 
                     raise Error(f"gate name {gate.name} not recognized!")
             file.close()
