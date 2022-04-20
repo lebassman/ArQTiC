@@ -549,11 +549,11 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                 #apply PBC couplings between left-most and right-most columns
                 if ((q_idx%nCols) == 0):
                     if (len(Jx) > 0):
-                        Jx_instr_set.append([theta_Jx, q_idx, q_idx+nCols])
+                        Jx_instr_set.append([theta_Jx, q_idx, q_idx+(nCols-1)])
                     if (len(Jy) > 0):
-                        Jy_instr_set.append([theta_Jy, q_idx, q_idx+nCols])
+                        Jy_instr_set.append([theta_Jy, q_idx, q_idx+(nCols-1)])
                     if (len(Jz) > 0):
-                        Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
+                        Jz_instr_set.append([theta_Jz, q_idx, q_idx+(nCols-1)])
 
             #apply external field terms to qubit
             if (len(hx) > 0):
