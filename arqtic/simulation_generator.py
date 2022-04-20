@@ -119,14 +119,14 @@ class Simulation_Generator:
                 dims = value.split(' ')
                 self.dims = len(dims)
                 if (len(dims) > 0):
-                    self.Nrows = int(dims[0])
-                    self.num_spins*=self.Nrows
+                    self.nRows = int(dims[0])
+                    self.num_spins*=self.rRows
                 if (len(dims) > 1):
-                    self.Ncols = int(dims[1])
-                    self.num_spins*=self.Ncols
+                    self.nCols = int(dims[1])
+                    self.num_spins*=self.nCols
                 if (len(dims) > 2):
-                    self.Nlayers = int(dims[2])
-                    self.num_spins*=self.Nlayers
+                    self.nLayers = int(dims[2])
+                    self.num_spins*=self.nLayers
             elif "*QCQS" in data[i]:
                 self.QCQS=value
             elif "*device" in data[i]:
