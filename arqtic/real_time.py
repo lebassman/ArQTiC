@@ -517,7 +517,8 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
         hz_instr_set = []       
         #loop over qubit index to generate coupling terms between nearest-neighbor pairs and apply external field
         for q_idx in range(N):
-            #couple to the qubit the right
+
+            #couple to the qubit to the right
             if ((q_idx+1)%nCols > 0):
                 if (len(Jx) > 0):
                     Jx_instr_set.append([theta_Jx, q_idx, q_idx+1])
@@ -525,6 +526,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                     Jy_instr_set.append([theta_Jy, q_idx, q_idx+1])
                 if (len(Jz) > 0):
                     Jz_instr_set.append([theta_Jz, q_idx, q_idx+1])
+
             #couple to the qubit below
             if (q_idx < (nRows-1)*nCols):
                 if (len(Jx) > 0):
@@ -533,7 +535,8 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                     Jy_instr_set.append([theta_Jy, q_idx, q_idx+nCols])
                 if (len(Jz) > 0):
                     Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
-            #add additional pairs is periodic boundary conditions exist
+
+            #add additional pairs if periodic boundary conditions exist
             if (pbc_flag == "True"):
                 #apply PBC couplings between top and bottom rows
                 if (q_idx < nCols):
@@ -551,6 +554,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                         Jy_instr_set.append([theta_Jy, q_idx, q_idx+nCols])
                     if (len(Jz) > 0):
                         Jz_instr_set.append([theta_Jz, q_idx, q_idx+nCols])
+
             #apply external field terms to qubit
             if (len(hx) > 0):
                 hx_instr_set.append([theta_hx[q_idx], q_idx])
@@ -622,29 +626,3 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
 
     #return program
     return P
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            
-    
-
-    
-    
