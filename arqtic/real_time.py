@@ -270,9 +270,36 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             lower = float(sim_obj.hx[1])
             upper = float(sim_obj.hx[2])
             hx = np.random.uniform(lower,upper,sim_obj.num_spins)
+        elif (sim_obj.hx[0] == "alternate"):
+            hx = []
+            val1 = float(sim_obj.hx[1])
+            val2 = float(sim_obj.hx[2])
+            #for even number of spins
+            if (sim_obj.num_spins % 2 == 0):
+                for i in range(sim_obj.num_spins):
+                    #even rows
+                    if (int(i/sim_obj.nCols) % 2 == 0):
+                        if (i%2 == 0): #flip even qubits
+                            hx.append(-1.0)
+                        else: 
+                            hx.append(1.0)
+                    #odd rows
+                    else:
+                        if (i%2 != 0): #flip odd qubits
+                            hx.append(-1.0)
+                        else:
+                            hx.append(1.0)
+            #for odd number of spins
+            else:
+                for i in range(sim_obj.num_spins):
+                    if (i%2 == 0): #flip even qubits
+                        hx.append(-1.0)
+                    else:
+                        hx.append(1.0)
         else:
             hx = np.asarray([float(x) for x in sim_obj.hx])
     else: hx = []
+        
     if (len(sim_obj.hy) > 0):
         if (len(sim_obj.hy) == 1):
             hy = np.full(sim_obj.num_spins, float(sim_obj.hy[0]))
@@ -280,9 +307,36 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             lower = float(sim_obj.hy[1])
             upper = float(sim_obj.hy[2])
             hy = np.random.uniform(lower,upper,sim_obj.num_spins)
+        elif (sim_obj.hy[0] == "alternate"):
+            hy = []
+            val1 = float(sim_obj.hy[1])
+            val2 = float(sim_obj.hy[2])
+            #for even number of spins
+            if (sim_obj.num_spins % 2 == 0):
+                for i in range(sim_obj.num_spins):
+                    #even rows
+                    if (int(i/sim_obj.nCols) % 2 == 0):
+                        if (i%2 == 0): #flip even qubits
+                            hy.append(-1.0)
+                        else: 
+                            hy.append(1.0)
+                    #odd rows
+                    else:
+                        if (i%2 != 0): #flip odd qubits
+                            hy.append(-1.0)
+                        else:
+                            hy.append(1.0)
+            #for odd number of spins
+            else:
+                for i in range(sim_obj.num_spins):
+                    if (i%2 == 0): #flip even qubits
+                        hy.append(-1.0)
+                    else:
+                        hy.append(1.0)
         else:
             hy = np.asarray([float(x) for x in sim_obj.hy])
     else: hy = []
+        
     if (len(sim_obj.hz) > 0):
         if (len(sim_obj.hz) == 1):
             hz = np.full(sim_obj.num_spins, float(sim_obj.hz[0]))
@@ -290,6 +344,32 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             lower = float(sim_obj.hz[1])
             upper = float(sim_obj.hz[2])
             hz = np.random.uniform(lower,upper,sim_obj.num_spins)
+        elif (sim_obj.hz[0] == "alternate"):
+            hz = []
+            val1 = float(sim_obj.hz[1])
+            val2 = float(sim_obj.hz[2])
+            #for even number of spins
+            if (sim_obj.num_spins % 2 == 0):
+                for i in range(sim_obj.num_spins):
+                    #even rows
+                    if (int(i/sim_obj.nCols) % 2 == 0):
+                        if (i%2 == 0): #flip even qubits
+                            hz.append(-1.0)
+                        else: 
+                            hz.append(1.0)
+                    #odd rows
+                    else:
+                        if (i%2 != 0): #flip odd qubits
+                            hz.append(-1.0)
+                        else:
+                            hz.append(1.0)
+            #for odd number of spins
+            else:
+                for i in range(sim_obj.num_spins):
+                    if (i%2 == 0): #flip even qubits
+                        hz.append(-1.0)
+                    else:
+                        hz.append(1.0)
         else:
             hz = np.asarray([float(x) for x in sim_obj.hz])
     else: hz = []
@@ -341,6 +421,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             td_Jz_func = []
             if (len(Jz) > 0):
                 theta_Jz = 2.0*Jz[0]*dt/H_BAR
+                
         if(len(sim_obj.td_hx_func) > 0):
             func_name = sim_obj.td_hx_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -348,9 +429,13 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "cos"):
                 td_hx_func = ["cos", sim_obj.td_hx_func[1]]
             elif (func_name == "linear"):
-                final_vals = np.asarray(sim_obj.td_hx_func[1])
-                if (len(final_vals) == 1):
-                    final_vals = np.full(sim_obj.num_spins, float(final_vals[0]))
+                final_val = np.asarray(sim_obj.td_hx_func[1])
+                if (final_val == "random"):
+                    lower = float(sim_obj.td_hx_func[2])
+                    upper = float(sim_obj.td_hx_func[3])
+                    final_vals = np.random.uniform(lower,upper,sim_obj.num_spins)
+                else:
+                    final_vals = np.full(sim_obj.num_spins, float(final_val))
                 increments = (final_vals - hx)/prop_steps
                 td_hx_func = ["linear", increments]
             else: 
@@ -359,6 +444,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             td_hx_func = []
             if (len(hx) > 0):
                 theta_hx = 2.0*hx*dt/H_BAR
+                
         if(len(sim_obj.td_hy_func) > 0):
             func_name = sim_obj.td_hy_func[0] #time-dependent function name
             if (func_name == "sin"):
@@ -366,9 +452,13 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             elif (func_name == "cos"):
                 td_hy_func = ["cos", sim_obj.td_hy_func[1]]
             elif (func_name == "linear"):
-                final_vals = np.asarray(sim_obj.td_hy_func[1])
-                if (len(final_vals) == 1):
-                    final_vals = np.full(sim_obj.num_spins, float(final_vals[0]))
+                final_val = np.asarray(sim_obj.td_hy_func[1])
+                if (final_val == "random"):
+                    lower = float(sim_obj.td_hy_func[2])
+                    upper = float(sim_obj.td_hy_func[3])
+                    final_vals = np.random.uniform(lower,upper,sim_obj.num_spins)
+                else:
+                    final_vals = np.full(sim_obj.num_spins, float(final_val))
                 increments = (final_vals - hy)/prop_steps
                 td_hy_func = ["linear", increments]
             else: 
@@ -377,6 +467,7 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
             td_hy_func = []
             if (len(hy) > 0):
                 theta_hy = 2.0*hy*dt/H_BAR
+                
         if(len(sim_obj.td_hz_func) > 0):
             func_name = sim_obj.td_hz_func[0] #time-dependent function name
             if (func_name == "sin"):
