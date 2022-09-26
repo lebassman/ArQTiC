@@ -20,10 +20,8 @@ if not os.path.isdir(path):
 
 class Simulation_Generator:
 
-    def __init__(self,file="input_file.txt",log="logfile.txt"):
-        #%matplotlib inline 
-        input_file=open(file,'r')
-        data=input_file.readlines()
+    def __init__(self,file="",log="logfile.txt"):
+        #%matplotlib inline
         completename = os.path.join(path,log)
         self.namevar=str(completename)
         with open(self.namevar,'w') as tempfile:
@@ -36,6 +34,10 @@ class Simulation_Generator:
         self.td_Jx_func=self.td_Jy_func=self.td_Jz_func=[] #time-dependence functions for coupling parameters
         self.td_hx_func=self.td_hy_func=self.td_hz_func=[] #time-dependence functions for external fields
         self.num_spins=[2] #total number of qubits along each lattice dimension
+        self.dims = 1
+        self.nRows = 1
+        self.nCols = 1
+        self.nLayers = 1
         self.initial_spins=[] #only for setting initial product states
         self.delta_t=1
         self.steps=1
@@ -64,103 +66,107 @@ class Simulation_Generator:
         self.PBC = "False"
 
         self.time_func=np.cos
-
-        for i in range(len(data)-1):
-            value=data[i+1].strip()
-            if "*Jx" in data[i]:
-                self.Jx=value.split(' ')
-            elif "*Jy" in data[i]:
-                self.Jy=value.split(' ')
-            elif "*Jz" in data[i]:
-                self.Jz=value.split(' ')
-            elif "*hx" in data[i]:
-                self.hx=value.split(' ')
-            elif "*hy" in data[i]:
-                self.hy=value.split(' ')
-            elif "*hz" in data[i]:
-                self.hz=value.split(' ')
-            elif "*td_Jx_func" in data[i]:
-                self.td_Jx_func=value.split(' ')
-            elif "*td_Jy_func" in data[i]:
-                self.td_Jy_func=value.split(' ')
-            elif "*td_Jz_func" in data[i]:
-                self.td_Jz_func=value.split(' ')
-            elif "*td_hx_func" in data[i]:
-                self.td_hx_func=value.split(' ')
-            elif "*td_hy_func" in data[i]:
-                self.td_hy_func=value.split(' ')
-            elif "*td_hz_func" in data[i]:
-                self.td_hz_func=value.split(' ')
-            elif "*hbar" in data[i]:
-                if (value == "eVfs"):
-                    self.H_BAR = 0.658212  # eV*fs
-            elif "*initial_spins" in data[i]:
-                self.initial_spins=value.split(' ')
-            elif "*delta_t" in data[i]:
-                self.delta_t=float(value)
-            elif "*steps" in data[i]:
-                self.steps=int(value)
-            elif "*start_timestep" in data[i]:
-                self.start_timestep=int(value)
-            elif "*end_timestep" in data[i]:
-                self.end_timestep=int(value)
-            elif "*real_time" in data[i]:
-                self.real_time=value
-            elif "*observable" in data[i]:
-                self.observable=value
-            elif "*beta" in data[i]:
-                self.beta=float(value)
-            elif "*delta_beta" in data[i]:
-                self.delta_beta=float(value)
-            elif "*domain" in data[i]:
-                self.domain=int(value)
-            elif "*num_spins" in data[i]:
-                self.num_spins = 1
-                dims = value.split(' ')
-                self.dims = len(dims)
-                if (len(dims) > 0):
-                    self.nRows = int(dims[0])
-                    self.num_spins*=self.nRows
-                if (len(dims) > 1):
-                    self.nCols = int(dims[1])
-                    self.num_spins*=self.nCols
-                if (len(dims) > 2):
-                    self.nLayers = int(dims[2])
-                    self.num_spins*=self.nLayers
-            elif "*QCQS" in data[i]:
-                self.QCQS=value
-            elif "*device" in data[i]:
-                self.device=value
-            elif "*backend" in data[i]:
-                self.backend=value
-            elif "*measure_dir" in data[i]:
-                self.backend=value
-            elif "*noise_choice" in data[i]:
-                self.noise_choice=value
-            elif "*plot_flag" in data[i]:
-                self.plot_flag=value
-            elif "*shots" in data[i]:
-                self.shots=int(value)
-            elif "*freq" in data[i]:
-                self.freq=float(value)
-            elif "*time_dep_flag" in data[i]:
-                self.time_dep_flag=value
-            elif "*compiler" in data[i]:
-                self.compiler=value
-            elif "*compile" in data[i]:
-                self.compile=value
-            elif "*constant_depth" in data[i]:
-                self.constant_depth=value
-            elif "*PBC" in data[i]:
-                self.PBC=value
-            elif "*custom_time_dep" in data[i]:
-                self.custom_time_dep=value
-                if self.custom_time_dep in "True":
-                    from time_dependence import external_func
-                    print("Found an external time dependence function")
-                    with open(self.namevar,'a') as tempfile:
-                        tempfile.write("Found an external time dependence function\n")
-                    self.time_func=external_func
+        
+        #if input file was given, read in values from input file
+        if (file != ""):
+            input_file=open(file,'r')
+            data=input_file.readlines()
+            for i in range(len(data)-1):
+                value=data[i+1].strip()
+                if "*Jx" in data[i]:
+                    self.Jx=value.split(' ')
+                elif "*Jy" in data[i]:
+                    self.Jy=value.split(' ')
+                elif "*Jz" in data[i]:
+                    self.Jz=value.split(' ')
+                elif "*hx" in data[i]:
+                    self.hx=value.split(' ')
+                elif "*hy" in data[i]:
+                    self.hy=value.split(' ')
+                elif "*hz" in data[i]:
+                    self.hz=value.split(' ')
+                elif "*td_Jx_func" in data[i]:
+                    self.td_Jx_func=value.split(' ')
+                elif "*td_Jy_func" in data[i]:
+                    self.td_Jy_func=value.split(' ')
+                elif "*td_Jz_func" in data[i]:
+                    self.td_Jz_func=value.split(' ')
+                elif "*td_hx_func" in data[i]:
+                    self.td_hx_func=value.split(' ')
+                elif "*td_hy_func" in data[i]:
+                    self.td_hy_func=value.split(' ')
+                elif "*td_hz_func" in data[i]:
+                    self.td_hz_func=value.split(' ')
+                elif "*hbar" in data[i]:
+                    if (value == "eVfs"):
+                        self.H_BAR = 0.658212  # eV*fs
+                elif "*initial_spins" in data[i]:
+                    self.initial_spins=value.split(' ')
+                elif "*delta_t" in data[i]:
+                    self.delta_t=float(value)
+                elif "*steps" in data[i]:
+                    self.steps=int(value)
+                elif "*start_timestep" in data[i]:
+                    self.start_timestep=int(value)
+                elif "*end_timestep" in data[i]:
+                    self.end_timestep=int(value)
+                elif "*real_time" in data[i]:
+                    self.real_time=value
+                elif "*observable" in data[i]:
+                    self.observable=value
+                elif "*beta" in data[i]:
+                    self.beta=float(value)
+                elif "*delta_beta" in data[i]:
+                    self.delta_beta=float(value)
+                elif "*domain" in data[i]:
+                    self.domain=int(value)
+                elif "*num_spins" in data[i]:
+                    self.num_spins = 1
+                    dims = value.split(' ')
+                    self.dims = len(dims)
+                    if (len(dims) > 0):
+                        self.nRows = int(dims[0])
+                        self.num_spins*=self.nRows
+                    if (len(dims) > 1):
+                        self.nCols = int(dims[1])
+                        self.num_spins*=self.nCols
+                    if (len(dims) > 2):
+                        self.nLayers = int(dims[2])
+                        self.num_spins*=self.nLayers
+                elif "*QCQS" in data[i]:
+                    self.QCQS=value
+                elif "*device" in data[i]:
+                    self.device=value
+                elif "*backend" in data[i]:
+                    self.backend=value
+                elif "*measure_dir" in data[i]:
+                    self.backend=value
+                elif "*noise_choice" in data[i]:
+                    self.noise_choice=value
+                elif "*plot_flag" in data[i]:
+                    self.plot_flag=value
+                elif "*shots" in data[i]:
+                    self.shots=int(value)
+                elif "*freq" in data[i]:
+                    self.freq=float(value)
+                elif "*time_dep_flag" in data[i]:
+                    self.time_dep_flag=value
+                elif "*compiler" in data[i]:
+                    self.compiler=value
+                elif "*compile" in data[i]:
+                    self.compile=value
+                elif "*constant_depth" in data[i]:
+                    self.constant_depth=value
+                elif "*PBC" in data[i]:
+                    self.PBC=value
+                elif "*custom_time_dep" in data[i]:
+                    self.custom_time_dep=value
+                    if self.custom_time_dep in "True":
+                        from time_dependence import external_func
+                        print("Found an external time dependence function")
+                        with open(self.namevar,'a') as tempfile:
+                            tempfile.write("Found an external time dependence function\n")
+                        self.time_func=external_func
            
         #format array entries
         #initial spin state
@@ -406,12 +412,22 @@ class Simulation_Generator:
             for gate in circuit.gates:
                 if gate.name in "H":
                     gate_list.append(cirq.H(qubit_list[gate.qubits[0]]))
+                elif gate.name in "S":
+                    gate_list.append(cirq.Z(qubit_list[gate.qubits[0]])**(0.5))
+                elif gate.name in "SDG":
+                    gate_list.append(cirq.Z(qubit_list[gate.qubits[0]])**(-0.5))
+                elif gate.name in "SX":
+                    gate_list.append(cirq.X(qubit_list[gate.qubits[0]])**(0.5))
+                elif gate.name in "SXDG":
+                    gate_list.append(cirq.X(qubit_list[gate.qubits[0]])**(-0.5))
                 elif gate.name in "RZ":
                     gate_list.append(cirq.rz(gate.angles[0])(qubit_list[gate.qubits[0]]))
                 elif gate.name in "RX":
                     gate_list.append(cirq.rx(gate.angles[0])(qubit_list[gate.qubits[0]]))
                 elif gate.name in "CNOT":
                     gate_list.append(cirq.CNOT(qubit_list[gate.qubits[0]],qubit_list[gate.qubits[1]]))
+                elif gate.name in "ISwapPowGate":
+                    gate_list.append(cirq.ISwapPowGate(exponent=(-1.*gate.angles[0]/np.pi)).on(qubit_list[gate.qubits[0]],qubit_list[gate.qubits[1]]))
             #for i in range(self.num_spins):
             #    gate_list.append(cirq.measure(qubit_list[i]))
             c.append(gate_list,strategy=cirq.InsertStrategy.EARLIEST)
@@ -474,6 +490,14 @@ class Simulation_Generator:
                     file.write(f"y q[{gate.qubits[0]}];\n")
                 elif gate.name in "Z":
                     file.write(f"z q[{gate.qubits[0]}];\n")
+                elif gate.name in "S":
+                    file.write(f"s q[{gate.qubits[0]}];\n")
+                elif gate.name in "SDG":
+                    file.write(f"sdg q[{gate.qubits[0]}];\n")
+                elif gate.name in "SX":
+                    file.write(f"sx q[{gate.qubits[0]}];\n")
+                elif gate.name in "SXDG":
+                    file.write(f"sxdg q[{gate.qubits[0]}];\n")
                 elif gate.name in "RX":
                     file.write(f"rx({gate.angles[0]}) q[{gate.qubits[0]}];\n")
                 elif gate.name in "RY":

@@ -8,7 +8,10 @@ X = np.array([[0.0,1.0],[1.0,0.0]])
 Y = np.array([[0,-1.0j],[1.0j,0.0]])
 Z = np.array([[1.0,0.0],[0.0,-1.0]])
 I = np.eye(2)
+S = np.array([[1.0, 0],[0, 1.0j]])
+SDG = np.array([[1, 0],[0, -1.0j]])
 SX = np.array([[1.0 + 1.0j, 1.0 - 1.0j],[1.0 - 1.0j, 1.0 + 1.0j]])*(1/2.0)
+SXDG = np.array([[1.0 - 1.0j, 1.0 + 1.0j],[1.0 + 1.0j, 1.0 - 1.0j]])*(1/2.0)
 H = np.array([[1.0,1.0],[1.0,-1.0]])*(1/np.sqrt(2.0))
 CNOT = np.array([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,0.0,1.0],[0.0,0.0,1.0,0.0]])
 CZ = np.array([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,-1.0]])
@@ -28,12 +31,20 @@ def U3(angles):
     lam = angles[2]
     return np.array([[np.cos(theta/2.0), -np.exp(1j*lam)*np.sin(theta/2.0)], [np.exp(1j*phi)*np.sin(theta/2.0), -np.exp(1j*(phi+lam))*np.cos(theta/2.0)]])
 
+def ISwapPowGate(theta):
+    c = np.cos(np.pi*theta/2.0)
+    s = np.sin(np.pi*theta/2.0)
+    return np.array([[1.0,0.0,0.0,0.0],[0.0,c,1j*s,0.0],[0.0,1j*s,c,0.0],[0.0,0.0,0.0,1.0]])
+
 gate_matrix_dict = {
     "X": X, 
     "Y": Y,
     "Z": Z, 
     "I": I,
     "SX": SX,
+    "SXDG": SXDG,
+    "S": S,
+    "SDG": SDG,
     "H": H, 
     "CNOT": CNOT, 
     "CZ": CZ
