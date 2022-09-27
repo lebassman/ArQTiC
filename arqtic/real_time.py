@@ -128,7 +128,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
     for step in range(prop_steps):
         #for time-dependent Hamiltonians
         if (sim_obj.time_dep_flag == "True"):
-            t = (step + 0.5) * dt
+            t = step*dt
             if (sim_obj.custom_time_dep == "True"):
                 ###needs to be implemented###
                 raise Error(f'Custom time-dependence not yet implemented. Use sin or cos.')
@@ -188,35 +188,48 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                     else:
                         raise Error(f'Unknown time-dependent function for hz: {func_name}')
 
+        #if Jx = Jy, combine into one Jxy term
+        if (np.array_equal(theta_Jx, theta_Jy):
+            Jx = []
+            Jy = []
+            Jxy = Jx
         #add coupling term instruction sets
         if (len(Jx) >0):
             for q in range(N-1):
                 Jx_instr_set=[]
-                Jx_instr_set.append(Gate([q], 'H'))
-                Jx_instr_set.append(Gate([q+1], 'H'))
-                Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
-                Jx_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jx[q]]))
-                Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
-                Jx_instr_set.append(Gate([q], 'H',))
-                Jx_instr_set.append(Gate([q+1], 'H',))
+                Jx_instr_set.append(Gate([q,q+1], 'RXX', angles=[theta_Jx[q]]))
+                #Jx_instr_set.append(Gate([q], 'H'))
+                #Jx_instr_set.append(Gate([q+1], 'H'))
+                #Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
+                #Jx_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jx[q]]))
+                #Jx_instr_set.append(Gate([q, q+1], 'CNOT'))
+                #Jx_instr_set.append(Gate([q], 'H',))
+                #Jx_instr_set.append(Gate([q+1], 'H',))
                 P.add_instr(Jx_instr_set)
         if (len(Jy) >0):
             for q in range(N-1):
                 Jy_instr_set=[]
-                Jy_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
-                Jy_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
-                Jy_instr_set.append(Gate([q, q+1],'CNOT'))
-                Jy_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jy[q]]))
-                Jy_instr_set.append(Gate([q, q+1], 'CNOT'))
-                Jy_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
-                Jy_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
+                Jy_instr_set.append(Gate([q,q+1], 'RYY', angles=[theta_Jy[q]]))
+                #Jy_instr_set.append(Gate([q],'RX',angles=[-np.pi/2]))
+                #Jy_instr_set.append(Gate([q+1],'RX',angles=[-np.pi/2]))
+                #Jy_instr_set.append(Gate([q, q+1],'CNOT'))
+                #Jy_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jy[q]]))
+                #Jy_instr_set.append(Gate([q, q+1], 'CNOT'))
+                #Jy_instr_set.append(Gate([q],'RX',angles=[np.pi/2]))
+                #Jy_instr_set.append(Gate([q+1],'RX',angles=[np.pi/2]))
                 P.add_instr(Jy_instr_set)
+        if (len(Jxy) >0):
+            for q in range(N-1):
+                Jxy_instr_set=[]
+                Jxy_instr_set.append(Gate([q,q+1], 'XXPlusYY', angles=[theta_Jxy[q]]))
+                P.add_instr(Jxy_instr_set)
         if (len(Jz) >0):
             for q in range(N-1):
                 Jz_instr_set=[]
-                Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
-                Jz_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jz[q]]))
-                Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
+                Jz_instr_set.append(Gate([q,q+1], 'RZZ', angles=[theta_Jz[q]]))
+                #Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
+                #Jz_instr_set.append(Gate([q+1], 'RZ', angles=[theta_Jz[q]]))
+                #Jz_instr_set.append(Gate([q, q+1], 'CNOT'))
                 P.add_instr(Jz_instr_set)
 
         #add external magnetic field instruction sets
@@ -479,9 +492,6 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                     lower = float(sim_obj.td_hz_func[2])
                     upper = float(sim_obj.td_hz_func[3])
                     final_vals = np.random.uniform(lower,upper,sim_obj.num_spins)
-                    #final_vals = [-5.62219183,-5.87734861,-0.81227263,8.94297099,-9.81309794,-3.35439789,11.34910348,-0.14741586,-7.96396944,-10.82998804,-10.87386166,-3.93690036,-1.38338096,-7.14279296,-8.12293522,-11.30689679]
-                    #final_vals = np.asarray(final_vals)
-                    #print(final_vals)
                 else:
                     final_vals = np.full(sim_obj.num_spins, float(final_val))
                 increments = (final_vals - hz)/prop_steps
@@ -512,7 +522,6 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
     
     #loop over time-steps
     for step in range(prop_steps):
-        #print('step is: ',step)
         #compute time-dependent parameters
         if (sim_obj.time_dep_flag == "True"):
             t = step*dt
@@ -715,7 +724,6 @@ def heisenberg2D_evolution_program(sim_obj, evol_time): #creates evolution progr
                 P.add_instr(instr_set)
 
         if (len(Jxy_instr_set) > 0):
-            #print('apply Jxy to P')
             for instr in Jxy_instr_set:
                 #print('Jxy instr:',instr)
                 angle = instr[0]
