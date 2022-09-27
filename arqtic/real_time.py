@@ -189,7 +189,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                         raise Error(f'Unknown time-dependent function for hz: {func_name}')
 
         #if Jx = Jy, combine into one Jxy term
-        if (np.array_equal(theta_Jx, theta_Jy):
+        if (np.array_equal(theta_Jx, theta_Jy)):
             Jx = []
             Jy = []
             Jxy = Jx
