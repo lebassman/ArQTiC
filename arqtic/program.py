@@ -25,6 +25,27 @@ def RY(theta):
 def RZ(theta):
     return np.array([[np.exp(-1.0j*theta/2.0), 0], [0, np.exp(1.0j*theta/2.0)]])
 
+def RXX(theta):
+    c = np.cos(theta/2.0)
+    s = np.sin(theta/2.0)
+    return np.array([[c,0.0,0.0,-1.0j*s],[0.0,c,-1.0j*s,0.0],[0.0,-1.0j*s,c,0.0],[-1.0j*s,0.0,0.0,c]])
+
+def RYY(theta):
+    c = np.cos(theta/2.0)
+    s = np.sin(theta/2.0)
+    return np.array([[c,0.0,0.0,1.0j*s],[0.0,c,-1.0j*s,0.0],[0.0,-1.0j*s,c,0.0],[1.0j*s,0.0,0.0,c]])
+
+def RZZ(theta):
+    exp_plus = np.exp(1.0j*theta/2.0)
+    exp_minus = np.exp(-1.0j*theta/2.0)
+    return np.array([[exp_minus,0.0,0.0,0.0],[0.0,exp_plus,0.0,0.0],[0.0,0.0,exp_plus,0.0],[0.0,0.0,0.0,exp_minus]])
+
+def XXPlusYY(theta):
+    c = np.cos(theta/2.0)
+    s = np.sin(theta/2.0)
+    return np.array([[1.0,0.0,0.0,0.0],[0.0,c,-1.0j*s,0.0],[0.0,-1.0j*s,c,0.0],[0.0,0.0,0.0,1.0]])
+
+
 def U3(angles):
     theta = angles[0]
     phi = angles[1]
