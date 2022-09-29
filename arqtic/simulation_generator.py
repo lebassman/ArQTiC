@@ -1,7 +1,7 @@
 #import necessary libraries
 import numpy as np
 from arqtic.program import Program, Gate
-#from arqtic.qite import make_QITE_program
+from arqtic.qite import make_QITE_program
 from arqtic.arqtic_for_ibm import ibm_circ_to_program, get_ibm_circuit
 #from arqtic.ds_compiler import get_constant_depth_program
 from arqtic.real_time import heisenberg_evolution_program, heisenberg2D_evolution_program

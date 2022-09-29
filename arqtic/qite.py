@@ -5,7 +5,6 @@ from arqtic.exceptions import Error
 import scipy
 from sklearn.linear_model import Lasso, LinearRegression
 import qiskit as qk
-from qiskit.aqua.operators.primitive_ops import MatrixOp
 from qiskit import Aer, execute
 import scipy.linalg as la
 
@@ -168,92 +167,92 @@ def get_PauliBasis_Heisenberg_Ham(sim_obj, domain, pbc=False):
         if (domain == 1):
             if len(sim_obj.hx) > 0:
                 #add transverse field term "X" to the one active qubit set
-                hm_array[1] = sim_obj.hx[0]
+                hm_array[1] = float(sim_obj.hx[0])
             if len(sim_obj.hy) > 0:
                 #add transverse field term "Y" to the one active qubit set
-                hm_array[2] = sim_obj.hy[0]
+                hm_array[2] = float(sim_obj.hy[0])
             if len(sim_obj.hz) > 0:
                 #add transverse field term "Z" to the one active qubit set
-                hm_array[3] = sim_obj.hz[0]
+                hm_array[3] = float(sim_obj.hz[0])
 
         if (domain == 2):
             if len(sim_obj.Jx) > 0:
                 #add exchange interaction term "XX" to all active qubit sets
-                hm_array[5] = sim_obj.Jx[0]
+                hm_array[5] = float(sim_obj.Jx[0])
             if len(sim_obj.Jy) > 0:
                 #add exchange interaction term "YY" to all active qubit sets
-                hm_array[10] = sim_obj.Jy[0]
+                hm_array[10] = float(sim_obj.Jy[0])
             if len(sim_obj.Jz) > 0:
                 #add exchange interaction term "ZZ" to all active qubit sets
-                hm_array[15] = sim_obj.Jz[0]
+                hm_array[15] = float(sim_obj.Jz[0])
             if len(sim_obj.hx) > 0:
                 #add transverse field term "XI" to all active qubit sets
-                hm_array[4] = sim_obj.hx[0]
+                hm_array[4] = float(sim_obj.hx[0])
                 #add transverse field term "IX" to last active qubit set if PBC is false
                 if (pbc == False):
                     if (i == nsets-1):
-                        hm_array[1] = sim_obj.hx[0]
+                        hm_array[1] = float(sim_obj.hx[0])
             if len(sim_obj.hy) > 0:
                 #add transverse field term "YI" to all active qubit sets
-                hm_array[8] = sim_obj.hy[0]
+                hm_array[8] = float(sim_obj.hy[0])
                 #add transverse field term "IY" to last active qubit set if PBC is false
                 if (pbc == False):
                     if (i == nsets-1):
-                        hm_array[2] = sim_obj.hy[0]
+                        hm_array[2] = float(sim_obj.hy[0])
             if len(sim_obj.hz) > 0:
                 #add transverse field term "ZI" to all active qubit sets
-                hm_array[12] = sim_obj.hz[0]
+                hm_array[12] = float(sim_obj.hz[0])
                 #add transverse field term "IZ" to last active qubit set if PBC is false
                 if (pbc == False):
                     if (i == nsets-1):
-                        hm_array[3] = sim_obj.hz[0]
+                        hm_array[3] = float(sim_obj.hz[0])
                         
         if (domain == 3):
             if len(sim_obj.Jx) > 0:
                 #add exchange interaction term "XXI" to all active qubit sets
-                hm_array[20] = sim_obj.Jx[0]
+                hm_array[20] = float(sim_obj.Jx[0])
                 #add exchange interaction term "IXX" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[5] = sim_obj.Jx[0]
+                    hm_array[5] = float(sim_obj.Jx[0])
             if len(sim_obj.Jy) > 0:
                 #add exchange interaction term "YYI" to all active qubit sets
-                hm_array[40] = sim_obj.Jy[0]
+                hm_array[40] = float(sim_obj.Jy[0])
                 #add exchange interaction term "IYY" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[10] = sim_obj.Jy[0]
+                    hm_array[10] = float(sim_obj.Jy[0])
             if len(sim_obj.Jz) > 0:
                 #add exchange interaction term "ZZI" to all active qubit sets
-                hm_array[60] = sim_obj.Jz[0]
+                hm_array[60] = float(sim_obj.Jz[0])
                 #add exchange interaction term "IZZ" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[15] = sim_obj.Jz[0]
+                    hm_array[15] = float(sim_obj.Jz[0])
             if len(sim_obj.hx) > 0:     
                 #add transverse field term "XII" to all active qubit sets
-                hm_array[16] = sim_obj.hx[0]
+                hm_array[16] = float(sim_obj.hx[0])
                 #add transverse field term "IXI" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[4] = sim_obj.hx[0]
+                    hm_array[4] = float(sim_obj.hx[0])
                     #add transverse field term "IIX" to last active qubit set if PBC is false
                     if (pbc == False):
-                        hm_array[1] = sim_obj.hx[0]
+                        hm_array[1] = float(sim_obj.hx[0])
             if len(sim_obj.hy) > 0:     
                 #add transverse field term "YII" to all active qubit sets
-                hm_array[32] = sim_obj.hy[0]
+                hm_array[32] = float(sim_obj.hy[0])
                 #add transverse field term "IYI" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[8] = sim_obj.hy[0]
+                    hm_array[8] = float(sim_obj.hy[0])
                     #add transverse field term "IIY" to last active qubit set if PBC is false
                     if (pbc == False):
-                        hm_array[2] = sim_obj.hy[0]
+                        hm_array[2] = float(sim_obj.hy[0])
             if len(sim_obj.hz) > 0:      
                 #add transverse field term "ZII" to all active qubit sets
-                hm_array[48] = sim_obj.hz[0]
+                hm_array[48] = float(sim_obj.hz[0])
                 #add transverse field term "IZI" to last active qubit set
                 if (i == nsets-1):
-                    hm_array[12] = sim_obj.hz[0]
+                    hm_array[12] = float(sim_obj.hz[0])
                     #add transverse field term "IIZ" to last active qubit set if PBC is false
                     if (pbc == False):
-                        hm_array[3] = sim_obj.hz[0]
+                        hm_array[3] = float(sim_obj.hz[0])
         hterm.append(hm_array)
         H.append(hterm)
     return H   
