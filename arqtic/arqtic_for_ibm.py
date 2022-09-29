@@ -3,6 +3,7 @@ from arqtic.program import Program, Gate
 import qiskit as qk
 from qiskit import Aer, IBMQ, execute
 from arqtic.exceptions import Error
+from qiskit.circuit.library.standard_gates import XXPlusYYGate
 
 def get_ibm_circuit(backend, prog,q_regs,c_regs,device):
     nqubits = prog.nqubits
@@ -26,6 +27,14 @@ def get_ibm_circuit(backend, prog,q_regs,c_regs,device):
                 ibm_circuit.u3(gate.angles[0][0],gate.angles[0][1],gate.angles[0][2], gate.qubits)
             elif (gate.name == "CNOT"):
                 ibm_circuit.cx(gate.qubits[0], gate.qubits[1])
+            elif (gate.name == "RXX"):
+                ibm_circuit.rxx(gate.angles[0], gate.qubits[0], gate.qubits[1])
+            elif (gate.name == "RYY"):
+                ibm_circuit.ryy(gate.angles[0], gate.qubits[0], gate.qubits[1])
+            elif (gate.name == "RZZ"):
+                ibm_circuit.rzz(gate.angles[0], gate.qubits[0], gate.qubits[1])
+            elif (gate.name == "XXPlusYY"):
+                ibm_circuit.append(XXPlusYYGate(gate.angles[0]), [gate.qubits[0], gate.qubits[1]])
             else:
                 raise Error(f'Unrecognized gate name: {gate.name}') 
         else: 
