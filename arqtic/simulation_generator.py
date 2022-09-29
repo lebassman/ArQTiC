@@ -263,6 +263,7 @@ class Simulation_Generator:
         self.ibm_circuits_list=[]
         for program in self.programs_list:
             ibm_circ = get_ibm_circuit(backend, program,self.q_regs,self.c_regs,self.device)
+            ibm_circ.measure(self.q_regs,self.c_regs)
             self.ibm_circuits_list.append(ibm_circ)
         print("IBM quantum circuit objects created")
         with open(self.namevar,'a') as tempfile:
@@ -540,12 +541,6 @@ class Simulation_Generator:
                 noise_model = NoiseModel.from_backend(device)
                 basis_gates = noise_model.basis_gates
             
-            #add measurements
-            temp = []
-            for circ in self.ibm_circuits_list:
-                circ.measure(self.q_regs,self.c_regs)
-                temp.append(circ)
-            self.ibm_circuits_list = temp
             #compile circuits to run
             temp = qk.compiler.transpile(self.ibm_circuits_list,backend=device,optimization_level=2)
             self.ibm_circuits_list = temp
