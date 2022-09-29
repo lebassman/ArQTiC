@@ -189,12 +189,13 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                         raise Error(f'Unknown time-dependent function for hz: {func_name}')
 
         #if Jx = Jy, combine into one Jxy term
+        Jxy = []
         if (np.array_equal(theta_Jx, theta_Jy)):
-            Jx = []
-            Jy = []
             Jxy = Jx
+            theta_Jxy = theta_Jx
+            
         #add coupling term instruction sets
-        if (len(Jx) >0):
+        if (len(Jx) >0 and len(Jxy) == 0):
             for q in range(N-1):
                 Jx_instr_set=[]
                 Jx_instr_set.append(Gate([q,q+1], 'RXX', angles=[theta_Jx[q]]))
@@ -206,7 +207,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
                 #Jx_instr_set.append(Gate([q], 'H',))
                 #Jx_instr_set.append(Gate([q+1], 'H',))
                 P.add_instr(Jx_instr_set)
-        if (len(Jy) >0):
+        if (len(Jy) >0 and len(Jxy) == 0):
             for q in range(N-1):
                 Jy_instr_set=[]
                 Jy_instr_set.append(Gate([q,q+1], 'RYY', angles=[theta_Jy[q]]))
@@ -221,7 +222,7 @@ def heisenberg_evolution_program(sim_obj, evol_time): #creates evolution program
         if (len(Jxy) >0):
             for q in range(N-1):
                 Jxy_instr_set=[]
-                Jxy_instr_set.append(Gate([q,q+1], 'XXPlusYY', angles=[theta_Jxy[q]]))
+                Jxy_instr_set.append(Gate([q,q+1], 'XXPlusYY', angles=[2.0*theta_Jxy[q]]))
                 P.add_instr(Jxy_instr_set)
         if (len(Jz) >0):
             for q in range(N-1):
