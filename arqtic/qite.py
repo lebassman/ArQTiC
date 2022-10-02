@@ -423,13 +423,17 @@ def Aop_to_matrix(A, domain):
 
 
 
-def make_QITE_program(sim_obj, regularizer=0.1):
+def make_QITE_program(sim_obj, psi_init=[],regularizer=0.1):
     beta = sim_obj.beta
     dbeta = sim_obj.delta_beta
     domain = sim_obj.domain
     backend = sim_obj.backend
     nbeta = int(beta/dbeta)
-    psi = get_state_from_string(sim_obj.initial_spins)
+    #set initial psi vector
+    if (len(psi_init) == 0):
+        psi = get_state_from_string(sim_obj.initial_spins)
+    else:
+        psi = np.asarray(psi_init)
     nspins = sim_obj.num_spins
     #get Pauli basis
     pauli_basis = make_Pauli_basis(domain)
