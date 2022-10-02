@@ -44,6 +44,9 @@ class Simulation_Generator:
         self.start_timestep=0
         self.end_timestep=0
         self.real_time="True"
+        self.beta = 1.0
+        self.delta_beta = 0.1
+        self.init_psi = []
         self.QCQS="QS"
         self.shots=1024
         self.noise_choice="False"
